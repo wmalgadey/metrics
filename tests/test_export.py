@@ -7,6 +7,7 @@ from metrics.analytics.domain.model import (
     BurndownPoint,
     CapacityPoint,
     CycleTimePercentiles,
+    ScopeChangePoint,
     VelocityPoint,
 )
 from metrics.publishing.adapters.victoriametrics import push_to_victoriametrics
@@ -14,6 +15,7 @@ from metrics.publishing.domain.exposition import (
     render_burndown,
     render_capacity,
     render_cycle_time,
+    render_scope_change,
     render_velocity,
 )
 
@@ -71,6 +73,34 @@ def test_render_velocity_and_capacity_and_cycletime():
     assert any(line.startswith("azdo_sprint_items_per_capacity_hour{") for line in c_lines)
     assert any('quantile="0.5"' in line for line in ct_lines)
     assert len(ct_lines) == 6  # 3 quantiles * (cycle + lead)
+
+
+def test_render_scope_change():
+    sc = [
+        ScopeChangePoint(
+            iteration_path="Proj\\Sprint 1", work_item_type="Bug",
+            start_date=date(2026, 6, 1), end_date=date(2026, 6, 5),
+            planned_items=3, added_items=1, final_scope_items=4, completed_items=1,
+            scope_change_rate=0.25, completion_rate=0.25,
+        ),
+        ScopeChangePoint(
+            iteration_path="Proj\\Sprint 2", work_item_type="Task",
+            start_date=date(2026, 6, 8), end_date=date(2026, 6, 12),
+            planned_items=0, added_items=0, final_scope_items=0, completed_items=0,
+            scope_change_rate=None, completion_rate=None,
+        ),
+    ]
+    lines = render_scope_change(sc, "Proj", "MyTeam")
+
+    assert any(line.startswith("azdo_sprint_added_mid_sprint_items{") for line in lines)
+    assert any(
+        line.startswith("azdo_sprint_scope_change_rate{") and 'sprint="Proj/Sprint 1"' in line
+        for line in lines
+    )
+    assert any(line.startswith("azdo_sprint_completion_rate{") for line in lines)
+    # the Sprint 2 point has no rates (division by zero) -> no rate lines for it
+    sprint2_lines = [line for line in lines if 'sprint="Proj/Sprint 2"' in line]
+    assert not any("rate" in line for line in sprint2_lines)
 
 
 @respx.mock

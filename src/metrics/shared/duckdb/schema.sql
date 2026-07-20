@@ -161,6 +161,34 @@ JOIN v_sprint_burndown l
     AND l.snapshot_date = b.last_day
     AND l.work_item_type = p.work_item_type;
 
+-- Items planned on day one vs. items pulled into the sprint afterwards,
+-- per iteration & work item type — the "was this planned upfront or added
+-- mid-sprint" signal, independent of what later happens to planned items.
+CREATE OR REPLACE VIEW v_scope_change AS
+WITH bounds AS (
+    SELECT iteration_path, MIN(snapshot_date) AS day1, MAX(snapshot_date) AS last_day
+    FROM work_item_snapshots
+    GROUP BY 1
+),
+item_first_seen AS (
+    SELECT iteration_path, work_item_id, work_item_type, MIN(snapshot_date) AS first_seen
+    FROM work_item_snapshots
+    WHERE effective_category <> 'Removed'
+    GROUP BY 1, 2, 3
+)
+SELECT
+    b.iteration_path,
+    i.team_id,
+    i.start_date,
+    i.end_date,
+    f.work_item_type,
+    COUNT(*) FILTER (WHERE f.first_seen = b.day1) AS planned_items,
+    COUNT(*) FILTER (WHERE f.first_seen > b.day1) AS added_items
+FROM bounds b
+JOIN iterations i ON i.path = b.iteration_path
+JOIN item_first_seen f ON f.iteration_path = b.iteration_path
+GROUP BY 1, 2, 3, 4, 5;
+
 -- Net capacity hours per sprint: capacity_per_day * working days present,
 -- excluding weekends, member days off and team days off.
 CREATE OR REPLACE VIEW v_capacity AS
