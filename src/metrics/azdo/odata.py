@@ -80,7 +80,6 @@ class ODataClient:
             "WorkItems",
             {
                 "$select": ",".join(WORK_ITEM_FIELDS),
-                "$expand": "Iteration($select=IterationPath)",
                 "$filter": " and ".join(filters),
             },
         )
@@ -101,7 +100,6 @@ class ODataClient:
             "WorkItemSnapshot",
             {
                 "$select": ",".join(SNAPSHOT_FIELDS),
-                "$expand": "Iteration($select=IterationPath)",
                 "$filter": " and ".join(filters),
             },
         )

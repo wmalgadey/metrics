@@ -23,7 +23,10 @@ class AzdoHttpError(RuntimeError):
             detail = response.text[:300]
         hint = ""
         if response.status_code in (401, 403):
-            hint = " — check that AZDO_PAT is valid and has Work Items (Read) + Analytics (Read) scopes"
+            hint = (
+                " — check that AZDO_PAT is valid and has Work Items (Read) "
+                "+ Analytics (Read) scopes"
+            )
         elif response.status_code == 404:
             hint = " — check organization/project/team names in config.yaml"
         super().__init__(f"Azure DevOps request failed ({response.status_code}): {detail}{hint}")
@@ -33,7 +36,9 @@ def make_client(pat: str, timeout: float = 60.0) -> httpx.Client:
     return httpx.Client(headers=auth_headers(pat), timeout=timeout, follow_redirects=True)
 
 
-def get_json(client: httpx.Client, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+def get_json(
+    client: httpx.Client, url: str, params: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """GET with retries on 429/5xx honoring Retry-After."""
     last: httpx.Response | None = None
     for attempt in range(MAX_RETRIES + 1):

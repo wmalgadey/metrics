@@ -1,7 +1,8 @@
 import httpx
+import pytest
 import respx
 
-from metrics.azdo.http import make_client
+from metrics.azdo.http import AzdoHttpError, get_json, make_client
 from metrics.azdo.rest import RestClient
 from metrics.config import AzureDevOpsConfig
 
@@ -43,12 +44,8 @@ def test_auth_failure_raises_helpful_error():
     respx.get("https://dev.azure.com/_apis/projects").mock(
         return_value=httpx.Response(401, json={"message": "Unauthorized"})
     )
-    from metrics.azdo.http import AzdoHttpError, get_json
 
-    with make_client("bad-pat") as client:
-        try:
-            get_json(client, "https://dev.azure.com/_apis/projects")
-            assert False, "expected AzdoHttpError"
-        except AzdoHttpError as exc:
-            assert "401" in str(exc)
-            assert "scopes" in str(exc)
+    with make_client("bad-pat") as client, pytest.raises(AzdoHttpError) as exc_info:
+        get_json(client, "https://dev.azure.com/_apis/projects")
+    assert "401" in str(exc_info.value)
+    assert "scopes" in str(exc_info.value)
