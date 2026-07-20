@@ -13,13 +13,27 @@ from metrics.config import (
     SprintsConfig,
     SyncConfig,
 )
-from metrics.storage.db import apply_schema
-from metrics.sync.pipeline import run_sync
+from metrics.ingestion.adapters.azdo.http import make_client
+from metrics.ingestion.adapters.azdo.source import AzdoWorkTrackingSource
+from metrics.ingestion.adapters.duckdb_store import DuckDbSyncStore
+from metrics.ingestion.adapters.raw_archive import FileRawArchive
+from metrics.ingestion.service import sync_sprints
+from metrics.shared.duckdb.db import apply_schema
 
 CFG = AzureDevOpsConfig(organization="my-org", project="MyProject", team="MyTeam")
 REST_BASE = f"{CFG.base_url}/MyProject/MyTeam/_apis/work/teamsettings"
 ANALYTICS_BASE = CFG.analytics_url
 ITERATION_ID = "11111111-1111-1111-1111-111111111111"
+
+
+def _run_sync(config, pat, conn, **kwargs):
+    """Builds the real adapters and calls sync_sprints() — mirrors what the
+    CLI's `sync` command does."""
+    store = DuckDbSyncStore(conn)
+    archive = FileRawArchive(config.data_dir)
+    with make_client(pat) as client:
+        source = AzdoWorkTrackingSource(client, config.azure_devops)
+        return sync_sprints(source, store, archive, config, **kwargs)
 
 
 def _mock_azdo(load_fixture):
@@ -57,7 +71,7 @@ def test_run_sync_populates_db(tmp_path, load_fixture):
     conn = duckdb.connect(":memory:")
     apply_schema(conn)
 
-    results = run_sync(config, "fake-pat", conn, today=date(2026, 6, 15))
+    results = _run_sync(config, "fake-pat", conn, today=date(2026, 6, 15))
 
     statuses = {(r.entity, r.scope): r.status for r in results}
     assert statuses[("iterations", "global")] == "ok"
@@ -88,7 +102,7 @@ def test_run_sync_skips_frozen_sprint(tmp_path, load_fixture):
     apply_schema(conn)
 
     # Far beyond the grace period after Sprint 23's end date (2026-06-14)
-    results = run_sync(config, "fake-pat", conn, today=date(2026, 8, 1))
+    results = _run_sync(config, "fake-pat", conn, today=date(2026, 8, 1))
 
     statuses = {(r.entity, r.scope): r.status for r in results}
     assert statuses[("work_items", "MyProject\\Sprint 23")] == "skipped-frozen"
@@ -102,7 +116,7 @@ def test_run_sync_unknown_sprint_reported_as_error(tmp_path, load_fixture):
     conn = duckdb.connect(":memory:")
     apply_schema(conn)
 
-    results = run_sync(
+    results = _run_sync(
         config, "fake-pat", conn, sprints=["MyProject\\Nonexistent"], today=date(2026, 6, 15)
     )
 

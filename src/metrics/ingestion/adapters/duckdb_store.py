@@ -1,4 +1,5 @@
-"""Transform fetched Azure DevOps data into DuckDB tables (idempotent upserts)."""
+"""DuckDbSyncStore: the SyncStore port implementation. Transforms fetched
+Azure DevOps data into DuckDB tables (idempotent upserts)."""
 
 from __future__ import annotations
 
@@ -7,7 +8,9 @@ from typing import Any
 
 import duckdb
 
-from ..config import StatesConfig
+from ...config import StatesConfig
+from ..domain.model import IterationRecord
+from ..domain.states import classify_state
 
 
 def _ts(value: str | None) -> datetime | None:
@@ -19,17 +22,6 @@ def _ts(value: str | None) -> datetime | None:
 def _date(value: str | None):
     ts = _ts(value)
     return ts.date() if ts else None
-
-
-def classify_state(state: str, state_category: str, states: StatesConfig) -> str:
-    """Config-adjusted classification, falling back to Analytics' own StateCategory."""
-    if state in states.removed:
-        return "Removed"
-    if state in states.done:
-        return "Completed"
-    if state in states.in_progress:
-        return "InProgress"
-    return state_category or "Other"
 
 
 def upsert_project(conn: duckdb.DuckDBPyConnection, project_id: str, organization: str) -> None:
@@ -313,3 +305,116 @@ def get_watermark(
         [source, entity, scope],
     ).fetchone()
     return result[0] if result else None
+
+
+def known_iterations(conn: duckdb.DuckDBPyConnection, team_id: str) -> list[IterationRecord]:
+    rows = conn.execute(
+        "SELECT path, iteration_id, start_date, end_date, timeframe FROM iterations "
+        "WHERE team_id = ?",
+        [team_id],
+    ).fetchall()
+    return [
+        IterationRecord(
+            path=r[0], iteration_id=r[1], start_date=r[2], end_date=r[3], timeframe=r[4]
+        )
+        for r in rows
+    ]
+
+
+def recent_sync_runs(conn: duckdb.DuckDBPyConnection, limit: int) -> list[tuple]:
+    """Raw rows for `metrics status`; kept as tuples since the CLI just prints them."""
+    return conn.execute(
+        "SELECT run_id, entity, scope, status, row_count, finished_at FROM sync_log "
+        "ORDER BY finished_at DESC NULLS LAST LIMIT ?",
+        [limit],
+    ).fetchall()
+
+
+def local_iterations(conn: duckdb.DuckDBPyConnection, team_id: str) -> list[tuple]:
+    """Raw rows for `metrics sprints list`; kept as tuples since the CLI just prints them."""
+    return conn.execute(
+        "SELECT path, timeframe, start_date, end_date, is_selected FROM iterations "
+        "WHERE team_id = ? ORDER BY start_date",
+        [team_id],
+    ).fetchall()
+
+
+class DuckDbSyncStore:
+    """SyncStore port implementation — binds a connection and delegates to the
+    module-level functions above, which remain independently usable/testable."""
+
+    def __init__(self, conn: duckdb.DuckDBPyConnection) -> None:
+        self._conn = conn
+
+    def upsert_project(self, project_id: str, organization: str) -> None:
+        upsert_project(self._conn, project_id, organization)
+
+    def upsert_team(self, team_id: str, project_id: str, name: str) -> None:
+        upsert_team(self._conn, team_id, project_id, name)
+
+    def upsert_iterations(
+        self,
+        project_id: str,
+        team_id: str,
+        iterations: list[dict[str, Any]],
+        selected_paths: set[str],
+    ) -> int:
+        return upsert_iterations(self._conn, project_id, team_id, iterations, selected_paths)
+
+    def upsert_capacities(
+        self, iteration_id: str, team_id: str, capacities: dict[str, Any]
+    ) -> int:
+        return upsert_capacities(self._conn, iteration_id, team_id, capacities)
+
+    def upsert_team_days_off(
+        self, iteration_id: str, team_id: str, team_days_off: dict[str, Any]
+    ) -> int:
+        return upsert_team_days_off(self._conn, iteration_id, team_id, team_days_off)
+
+    def upsert_work_items(
+        self,
+        project_id: str,
+        iteration_path: str,
+        items: list[dict[str, Any]],
+        states: StatesConfig,
+    ) -> int:
+        return upsert_work_items(self._conn, project_id, iteration_path, items, states)
+
+    def upsert_work_item_snapshots(
+        self, iteration_path: str, snapshots: list[dict[str, Any]], states: StatesConfig
+    ) -> int:
+        return upsert_work_item_snapshots(self._conn, iteration_path, snapshots, states)
+
+    def known_iterations(self, team_id: str) -> list[IterationRecord]:
+        return known_iterations(self._conn, team_id)
+
+    def record_sync_log(
+        self,
+        *,
+        run_id: str,
+        started_at: datetime,
+        finished_at: datetime | None,
+        source: str,
+        entity: str,
+        scope: str,
+        watermark: str | None,
+        row_count: int,
+        status: str,
+        error: str | None = None,
+        raw_path: str | None = None,
+    ) -> None:
+        record_sync_log(
+            self._conn,
+            run_id=run_id, started_at=started_at, finished_at=finished_at, source=source,
+            entity=entity, scope=scope, watermark=watermark, row_count=row_count,
+            status=status, error=error, raw_path=raw_path,
+        )
+
+    def get_watermark(self, source: str, entity: str, scope: str) -> str | None:
+        return get_watermark(self._conn, source, entity, scope)
+
+    def recent_sync_runs(self, limit: int) -> list[tuple]:
+        return recent_sync_runs(self._conn, limit)
+
+    def local_iterations(self, team_id: str) -> list[tuple]:
+        return local_iterations(self._conn, team_id)

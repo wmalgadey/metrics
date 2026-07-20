@@ -1,4 +1,6 @@
-"""Typer CLI: init, sync, sprints, status."""
+"""Typer CLI: init, sync, sprints, status. The composition root — this is
+the only place that constructs concrete adapters and wires them into the
+ingestion/analytics/publishing services."""
 
 from __future__ import annotations
 
@@ -11,8 +13,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from .azdo.http import AzdoHttpError, make_client
-from .azdo.rest import RestClient
+from .analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
 from .config import (
     DEFAULT_CONFIG_FILE,
     AppConfig,
@@ -21,8 +22,15 @@ from .config import (
     Settings,
     SprintsConfig,
 )
-from .export.vm import ExportSummary, run_export
-from .storage.db import connect
+from .ingestion.adapters.azdo.http import AzdoHttpError, make_client
+from .ingestion.adapters.azdo.rest import RestClient
+from .ingestion.adapters.azdo.source import AzdoWorkTrackingSource
+from .ingestion.adapters.duckdb_store import DuckDbSyncStore
+from .ingestion.adapters.raw_archive import FileRawArchive
+from .ingestion.service import sync_sprints
+from .publishing.adapters.victoriametrics import VictoriaMetricsSink
+from .publishing.service import ExportSummary, publish_metrics
+from .shared.duckdb.db import connect
 
 app = typer.Typer(
     add_completion=False, help="Fetch Azure DevOps sprint metrics and store them locally."
@@ -31,6 +39,10 @@ sprints_app = typer.Typer(help="Inspect sprints (iterations).")
 app.add_typer(sprints_app, name="sprints")
 
 console = Console()
+
+
+def _team_id(config: AppConfig) -> str:
+    return f"{config.azure_devops.project}/{config.azure_devops.team}"
 
 
 def _require_pat() -> str:
@@ -68,13 +80,14 @@ def _do_export(
         return None
     conn = connect(config.db_path, read_only=True)
     try:
-        return run_export(
-            conn,
+        repo = DuckDbSprintMetricsRepository(conn)
+        sink = VictoriaMetricsSink(config.export.victoriametrics_url)
+        return publish_metrics(
+            repo, sink,
             project=config.azure_devops.project,
             team=config.azure_devops.team,
             iteration_paths=target_paths,
             rolling_window=config.metrics.velocity_rolling_window,
-            vm_url=config.export.victoriametrics_url,
         )
     except httpx.HTTPError as exc:
         msg = f"Export to VictoriaMetrics failed ({config.export.victoriametrics_url}): {exc}"
@@ -169,13 +182,17 @@ def sync(
     config_path: Path = typer.Option(DEFAULT_CONFIG_FILE, "--config"),
 ) -> None:
     """Fetch iterations, capacities, work items and daily snapshots for the selected sprints."""
-    from .sync.pipeline import run_sync
-
     pat = _require_pat()
     config = _load_config(config_path)
     conn = connect(config.db_path)
     try:
-        results = run_sync(config, pat, conn, sprints=sprint or None, full=full)
+        store = DuckDbSyncStore(conn)
+        archive = FileRawArchive(config.data_dir)
+        with make_client(pat) as client:
+            source = AzdoWorkTrackingSource(client, config.azure_devops)
+            results = sync_sprints(
+                source, store, archive, config, sprints=sprint or None, full=full
+            )
     finally:
         conn.close()
 
@@ -262,11 +279,8 @@ def sprints_list(
             )
     else:
         conn = connect(config.db_path, read_only=True)
-        rows = conn.execute(
-            "SELECT path, timeframe, start_date, end_date, is_selected FROM iterations "
-            "WHERE team_id = ? ORDER BY start_date",
-            [f"{config.azure_devops.project}/{config.azure_devops.team}"],
-        ).fetchall()
+        store = DuckDbSyncStore(conn)
+        rows = store.local_iterations(_team_id(config))
         conn.close()
         for path, timeframe, start, end, is_selected in rows:
             table.add_row(
@@ -285,11 +299,8 @@ def status(
     """Show recent sync runs."""
     config = _load_config(config_path)
     conn = connect(config.db_path, read_only=True)
-    rows = conn.execute(
-        "SELECT run_id, entity, scope, status, row_count, finished_at FROM sync_log "
-        "ORDER BY finished_at DESC NULLS LAST LIMIT ?",
-        [limit],
-    ).fetchall()
+    store = DuckDbSyncStore(conn)
+    rows = store.recent_sync_runs(limit)
     conn.close()
 
     table = Table(title="Recent sync runs")

@@ -1,9 +1,9 @@
 import httpx
 import respx
 
-from metrics.azdo.http import make_client
-from metrics.azdo.odata import ODataClient
 from metrics.config import AzureDevOpsConfig
+from metrics.ingestion.adapters.azdo.http import make_client
+from metrics.ingestion.adapters.azdo.odata import ODataClient
 
 CFG = AzureDevOpsConfig(organization="my-org", project="MyProject", team="MyTeam")
 BASE = CFG.analytics_url

@@ -2,9 +2,9 @@ import httpx
 import pytest
 import respx
 
-from metrics.azdo.http import AzdoHttpError, get_json, make_client
-from metrics.azdo.rest import RestClient
 from metrics.config import AzureDevOpsConfig
+from metrics.ingestion.adapters.azdo.http import AzdoHttpError, get_json, make_client
+from metrics.ingestion.adapters.azdo.rest import RestClient
 
 CFG = AzureDevOpsConfig(organization="my-org", project="MyProject", team="MyTeam")
 

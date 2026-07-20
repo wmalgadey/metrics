@@ -18,8 +18,9 @@ see, per sprint:
 Item **counts** per work item type are the primary measure, not Effort — see
 [docs/architecture.md](docs/architecture.md#measurement-basis-item-counts-not-effort)
 for why. Azure DevOps here holds only work items and a wiki; code lives in
-GitLab (no access yet). The storage layer is deliberately structured so
-GitLab code metrics can be joined in later — see
+GitLab (no access yet). The codebase is organized into three bounded
+contexts (ingestion, analytics, publishing) behind ports, so GitLab code
+metrics can be added as a new adapter later — see
 [docs/architecture.md](docs/architecture.md#adding-gitlab-code-metrics-later).
 
 ## Prerequisites
@@ -109,9 +110,15 @@ uv run metrics --help
 
 Tests run fully offline against recorded fixtures (`tests/fixtures/azdo/`,
 via `respx`) and an in-memory DuckDB — no PAT or containers needed.
+`tests/bdd/` is a parallel English-Gherkin specification (via `pytest-bdd`)
+of the system's core rules (burndown ideal line, scope changes, velocity,
+frozen sprints, incremental sync, cycle time, idempotent export) — read
+`tests/bdd/features/*.feature` for a business-readable tour of what this
+system actually guarantees.
 
 ## Architecture
 
 See [docs/architecture.md](docs/architecture.md) for the raw layer → DuckDB
-→ VictoriaMetrics → Perses pipeline, the DB schema, and how to extend this
+→ VictoriaMetrics → Perses pipeline, the DB schema, the ingestion/analytics/
+publishing bounded contexts and their ports/adapters, and how to extend this
 with GitLab code metrics.

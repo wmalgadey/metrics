@@ -49,3 +49,15 @@ def latest_run_files(data_dir: Path, source: str, entity: str) -> list[Path]:
     if not runs:
         return []
     return sorted(runs[-1].glob("*.json.gz"))
+
+
+class FileRawArchive:
+    """RawArchive port implementation — binds data_dir and delegates to write_raw."""
+
+    def __init__(self, data_dir: Path) -> None:
+        self._data_dir = data_dir
+
+    def write(
+        self, source: str, entity: str, run_id: str, scope: str, payload: list[dict[str, Any]]
+    ) -> Path:
+        return write_raw(self._data_dir, source, entity, run_id, scope, payload)

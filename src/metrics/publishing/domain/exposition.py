@@ -1,20 +1,18 @@
-"""Render metrics as Prometheus exposition lines with historical timestamps
-and import them into VictoriaMetrics. Re-export is idempotent: identical
-(metric, labels, timestamp) samples simply overwrite in VM's dedup."""
+"""Render analytics domain points as Prometheus exposition lines with
+historical timestamps. Pure — no I/O. Moved verbatim from the former
+export/vm.py."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
-import duckdb
-import httpx
-
-from ..metrics.burndown import BurndownPoint, sprint_burndown
-from ..metrics.capacity import CapacityPoint, capacity_vs_velocity
-from ..metrics.cycletime import CycleTimePercentiles, cycle_time_percentiles
-from ..metrics.velocity import VelocityPoint, sprint_velocity
+from ...analytics.domain.model import (
+    BurndownPoint,
+    CapacityPoint,
+    CycleTimePercentiles,
+    VelocityPoint,
+)
 
 
 def _escape_label(value: str) -> str:
@@ -112,47 +110,3 @@ def render_cycle_time(
             if lead_val is not None:
                 lines.append(_line("azdo_lead_time_days", labels, lead_val, ts))
     return lines
-
-
-def push_to_victoriametrics(url: str, lines: list[str], *, timeout: float = 30.0) -> None:
-    if not lines:
-        return
-    payload = "\n".join(lines) + "\n"
-    response = httpx.post(
-        f"{url.rstrip('/')}/api/v1/import/prometheus", content=payload, timeout=timeout
-    )
-    response.raise_for_status()
-
-
-@dataclass
-class ExportSummary:
-    iteration_paths: list[str]
-    line_count: int
-
-
-def run_export(
-    conn: duckdb.DuckDBPyConnection,
-    *,
-    project: str,
-    team: str,
-    iteration_paths: list[str],
-    rolling_window: int,
-    vm_url: str,
-    push: bool = True,
-) -> ExportSummary:
-    lines: list[str] = []
-    for path in iteration_paths:
-        lines += render_burndown(sprint_burndown(conn, path), project, team)
-
-    lines += render_velocity(
-        sprint_velocity(conn, iteration_paths, rolling_window), project, team
-    )
-    lines += render_capacity(capacity_vs_velocity(conn, iteration_paths), project, team)
-    lines += render_cycle_time(
-        cycle_time_percentiles(conn, iteration_paths), project, team
-    )
-
-    if push:
-        push_to_victoriametrics(vm_url, lines)
-
-    return ExportSummary(iteration_paths=iteration_paths, line_count=len(lines))

@@ -3,17 +3,19 @@ from datetime import date
 import httpx
 import respx
 
-from metrics.export.vm import (
-    push_to_victoriametrics,
+from metrics.analytics.domain.model import (
+    BurndownPoint,
+    CapacityPoint,
+    CycleTimePercentiles,
+    VelocityPoint,
+)
+from metrics.publishing.adapters.victoriametrics import push_to_victoriametrics
+from metrics.publishing.domain.exposition import (
     render_burndown,
     render_capacity,
     render_cycle_time,
     render_velocity,
 )
-from metrics.metrics.burndown import BurndownPoint
-from metrics.metrics.capacity import CapacityPoint
-from metrics.metrics.cycletime import CycleTimePercentiles
-from metrics.metrics.velocity import VelocityPoint
 
 
 def test_render_burndown_includes_ideal_and_optional_effort():

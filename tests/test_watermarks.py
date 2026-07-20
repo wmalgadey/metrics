@@ -1,6 +1,6 @@
 from datetime import date
 
-from metrics.sync.watermarks import is_frozen, parse_watermark_date, snapshot_date_range
+from metrics.ingestion.domain.watermarks import is_frozen, parse_watermark_date, snapshot_date_range
 
 
 def test_parse_watermark_date():

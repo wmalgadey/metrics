@@ -4,8 +4,8 @@ import duckdb
 import pytest
 
 from metrics.config import StatesConfig
-from metrics.storage import loaders
-from metrics.storage.db import apply_schema
+from metrics.ingestion.adapters import duckdb_store as loaders
+from metrics.shared.duckdb.db import apply_schema
 
 STATES = StatesConfig(
     done=["Done", "Closed"],
