@@ -19,7 +19,7 @@ spec:
           spec:
             labelName: sprint
             matchers:
-              - azdo_sprint_scope_items{}
+              - azdo_sprint_planned_items{}
     - kind: ListVariable
       spec:
         name: work_item_type
