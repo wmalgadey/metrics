@@ -34,11 +34,32 @@ spec:
             matchers:
               - azdo_sprint_scope_items{}
   panels:
-    burndown_items:
+    burndown_open:
       kind: Panel
       spec:
         display:
-          name: "Open Items — Actual vs. Ideal vs. Scope"
+          name: "Open Items — Actual"
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+            visual:
+              areaOpacity: 0.3
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} — open"
+                  query: >-
+                    sum by (sprint) (azdo_sprint_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+    burndown_ideal_scope:
+      kind: Panel
+      spec:
+        display:
+          name: "Ideal vs. Scope"
           description: >-
             Ideal is a linear line from day-1 scope to zero on the sprint's last
             working day, flat over weekends/team days off. Scope rising mid-sprint
@@ -54,25 +75,17 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — open"
+                  seriesNameFormat: "{{sprint}} — ideal"
                   query: >-
-                    azdo_sprint_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+                    sum by (sprint) (azdo_sprint_ideal_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
           - kind: TimeSeriesQuery
             spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — ideal"
+                  seriesNameFormat: "{{sprint}} — scope"
                   query: >-
-                    azdo_sprint_ideal_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — scope"
-                  query: >-
-                    azdo_sprint_scope_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+                    sum by (sprint) (azdo_sprint_scope_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
     burndown_effort:
       kind: Panel
       spec:
@@ -90,9 +103,9 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — remaining effort"
+                  seriesNameFormat: "{{sprint}} — remaining effort"
                   query: >-
-                    azdo_sprint_remaining_effort{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+                    sum by (sprint) (azdo_sprint_remaining_effort{sprint=~"$sprint", work_item_type=~"$work_item_type"})
   layouts:
     - kind: Grid
       spec:
@@ -100,10 +113,15 @@ spec:
           - x: 0
             y: 0
             width: 24
-            height: 10
-            content: { $ref: "#/spec/panels/burndown_items" }
+            height: 8
+            content: { $ref: "#/spec/panels/burndown_open" }
           - x: 0
-            y: 10
+            y: 8
+            width: 24
+            height: 8
+            content: { $ref: "#/spec/panels/burndown_ideal_scope" }
+          - x: 0
+            y: 16
             width: 24
             height: 8
             content: { $ref: "#/spec/panels/burndown_effort" }
