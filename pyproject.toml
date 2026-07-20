@@ -21,6 +21,7 @@ metrics = "metrics.cli:app"
 [dependency-groups]
 dev = [
     "pytest>=8.3",
+    "pytest-bdd>=8.0",
     "respx>=0.21",
     "ruff>=0.6",
 ]
@@ -35,6 +36,7 @@ packages = ["src/metrics"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+bdd_features_base_dir = "tests/bdd/features"
 
 [tool.ruff]
 line-length = 100
