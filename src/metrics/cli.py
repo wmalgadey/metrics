@@ -6,6 +6,8 @@ from pathlib import Path
 
 import httpx
 import typer
+import yaml
+from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
@@ -47,6 +49,15 @@ def _load_config(path: Path) -> AppConfig:
         return AppConfig.load(path)
     except FileNotFoundError as exc:
         console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from None
+    except yaml.YAMLError as exc:
+        console.print(f"[red]'{path}' is not valid YAML:[/red]\n{exc}")
+        raise typer.Exit(1) from None
+    except ValidationError as exc:
+        console.print(f"[red]'{path}' has invalid or missing settings:[/red]")
+        for err in exc.errors():
+            loc = ".".join(str(p) for p in err["loc"])
+            console.print(f"  [red]{loc}: {err['msg']}[/red]")
         raise typer.Exit(1) from None
 
 
