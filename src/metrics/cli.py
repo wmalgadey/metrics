@@ -4,6 +4,7 @@ ingestion/analytics/publishing services."""
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import httpx
@@ -11,6 +12,7 @@ import typer
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.table import Table
 
 from .analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
@@ -39,6 +41,14 @@ sprints_app = typer.Typer(help="Inspect sprints (iterations).")
 app.add_typer(sprints_app, name="sprints")
 
 console = Console()
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(console=console, show_path=False, markup=True)],
+)
+logging.getLogger("metrics").setLevel(logging.INFO)
 
 
 def _team_id(config: AppConfig) -> str:

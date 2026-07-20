@@ -36,8 +36,10 @@ def _log_and_collect(
     fn,
 ) -> None:
     started = datetime.now(tz=UTC)
+    log.info("syncing %s/%s...", entity, scope)
     try:
         row_count, watermark, raw_path = fn()
+        log.info("synced %s/%s: %d row(s)", entity, scope, row_count)
         store.record_sync_log(
             run_id=run_id,
             started_at=started,
@@ -105,9 +107,12 @@ def sync_sprints(
 
     known = {record.path: record for record in store.known_iterations(team_id)}
 
-    for path in sorted(target_paths):
+    sorted_paths = sorted(target_paths)
+    log.info("syncing %d sprint(s)", len(sorted_paths))
+    for i, path in enumerate(sorted_paths, start=1):
         record = known.get(path)
         if record is None:
+            log.error("'%s' is not a known iteration for team '%s'", path, team_id)
             results.append(
                 SyncResult(
                     "work_items", path, 0, "error",
@@ -120,9 +125,11 @@ def sync_sprints(
         if not full and is_frozen(
             record.timeframe, record.end_date, today, config.sync.closed_sprint_grace_days
         ):
+            log.info("[%d/%d] %s: skipped (frozen)", i, len(sorted_paths), path)
             results.append(SyncResult("work_items", path, 0, "skipped-frozen"))
             continue
 
+        log.info("[%d/%d] %s", i, len(sorted_paths), path)
         _sync_sprint(
             source, store, archive, config, run_id, path, record.iteration_id,
             record.start_date, record.end_date, team_id, full, today, results,
