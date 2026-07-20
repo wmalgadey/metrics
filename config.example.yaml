@@ -31,7 +31,9 @@ sync:
   closed_sprint_grace_days: 3
 
 export:
-  victoriametrics_url: "http://victoriametrics:8428"
+  # metrics.sh runs the CLI container with --network host, so VictoriaMetrics
+  # (published by podman-compose on 8428) is reachable via localhost.
+  victoriametrics_url: "http://localhost:8428"
 
 paths:
   data_dir: "data"

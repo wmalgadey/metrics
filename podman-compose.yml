@@ -1,0 +1,28 @@
+# Dashboard stack (VictoriaMetrics + Perses). The CLI (init/sync/export) runs
+# as one-shot containers via ./metrics.sh, not as a compose service — see
+# README.md for why.
+services:
+  victoriametrics:
+    image: docker.io/victoriametrics/victoria-metrics:v1.102.0
+    container_name: azdo-metrics-vm
+    ports:
+      - "8428:8428"
+    volumes:
+      - ./data/vm-data:/victoria-metrics-data:Z
+    command:
+      - "--storageDataPath=/victoria-metrics-data"
+      - "--httpListenAddr=:8428"
+    restart: unless-stopped
+
+  perses:
+    image: docker.io/persesdev/perses:v0.47.0
+    container_name: azdo-metrics-perses
+    depends_on:
+      - victoriametrics
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./perses/config.yaml:/etc/perses/config.yaml:Z,ro
+      - ./perses/provisioning:/etc/perses/provisioning:Z,ro
+    command: ["--config=/etc/perses/config.yaml"]
+    restart: unless-stopped

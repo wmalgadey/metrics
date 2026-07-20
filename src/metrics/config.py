@@ -61,7 +61,8 @@ class SyncConfig(BaseModel):
 
 
 class ExportConfig(BaseModel):
-    victoriametrics_url: str = "http://victoriametrics:8428"
+    # Matches metrics.sh, which runs the CLI container with --network host.
+    victoriametrics_url: str = "http://localhost:8428"
 
 
 class PathsConfig(BaseModel):
