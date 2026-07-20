@@ -19,6 +19,15 @@ def _escape_label(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 
+def _sprint_label(iteration_path: str) -> str:
+    """Azure DevOps iteration paths are backslash-separated. Dashboards
+    (Perses) interpolate this label's raw value into PromQL/MetricsQL query
+    text for the $sprint variable without escaping it for string-literal
+    syntax, so a literal backslash breaks query parsing downstream. Forward
+    slashes are unambiguous in that context and read just as naturally."""
+    return iteration_path.replace("\\", "/")
+
+
 def _line(metric: str, labels: dict[str, str], value: float, ts_ms: int) -> str:
     label_str = ",".join(f'{k}="{_escape_label(v)}"' for k, v in labels.items())
     return f"{metric}{{{label_str}}} {value} {ts_ms}"
@@ -41,7 +50,7 @@ def render_burndown(points: Iterable[BurndownPoint], project: str, team: str) ->
     for p in points:
         labels = {
             "project": project, "team": team,
-            "sprint": p.iteration_path, "work_item_type": p.work_item_type,
+            "sprint": _sprint_label(p.iteration_path), "work_item_type": p.work_item_type,
         }
         ts = _day_ts_ms(p.day)
         lines.append(_line("azdo_sprint_open_items", labels, p.open_items, ts))
@@ -62,7 +71,7 @@ def render_velocity(points: Iterable[VelocityPoint], project: str, team: str) ->
     for p in points:
         labels = {
             "project": project, "team": team,
-            "sprint": p.iteration_path, "work_item_type": p.work_item_type,
+            "sprint": _sprint_label(p.iteration_path), "work_item_type": p.work_item_type,
         }
         ts = _date_ts_ms(p.end_date)
         lines.append(_line("azdo_sprint_planned_items", labels, p.planned_items, ts))
@@ -82,7 +91,7 @@ def render_velocity(points: Iterable[VelocityPoint], project: str, team: str) ->
 def render_capacity(points: Iterable[CapacityPoint], project: str, team: str) -> list[str]:
     lines = []
     for p in points:
-        labels = {"project": project, "team": team, "sprint": p.iteration_path}
+        labels = {"project": project, "team": team, "sprint": _sprint_label(p.iteration_path)}
         ts = _date_ts_ms(p.end_date)
         lines.append(_line("azdo_sprint_capacity_hours", labels, p.capacity_hours, ts))
         if p.items_per_capacity_hour is not None:
