@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -18,6 +19,7 @@ from .config import (
     Settings,
     SprintsConfig,
 )
+from .export.vm import ExportSummary, run_export
 from .storage.db import connect
 
 app = typer.Typer(
@@ -46,6 +48,34 @@ def _load_config(path: Path) -> AppConfig:
     except FileNotFoundError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from None
+
+
+def _do_export(
+    config: AppConfig, target_paths: list[str], *, fail_fast: bool
+) -> ExportSummary | None:
+    if not target_paths:
+        return None
+    conn = connect(config.db_path, read_only=True)
+    try:
+        return run_export(
+            conn,
+            project=config.azure_devops.project,
+            team=config.azure_devops.team,
+            iteration_paths=target_paths,
+            rolling_window=config.metrics.velocity_rolling_window,
+            vm_url=config.export.victoriametrics_url,
+        )
+    except httpx.HTTPError as exc:
+        msg = f"Export to VictoriaMetrics failed ({config.export.victoriametrics_url}): {exc}"
+        if fail_fast:
+            console.print(f"[red]{msg}[/red]")
+            raise typer.Exit(1) from None
+        console.print(
+            f"[yellow]{msg} — data was synced locally; run 'metrics export' later.[/yellow]"
+        )
+        return None
+    finally:
+        conn.close()
 
 
 @app.command()
@@ -122,6 +152,9 @@ def sync(
         help="Iteration path to sync (repeatable). Defaults to config.yaml sprints.selected.",
     ),
     full: bool = typer.Option(False, "--full", help="Ignore watermarks and re-fetch everything."),
+    no_export: bool = typer.Option(
+        False, "--no-export", help="Skip the automatic export to VictoriaMetrics after sync."
+    ),
     config_path: Path = typer.Option(DEFAULT_CONFIG_FILE, "--config"),
 ) -> None:
     """Fetch iterations, capacities, work items and daily snapshots for the selected sprints."""
@@ -149,8 +182,43 @@ def sync(
             had_error = True
             console.print(f"[red]  {r.entity}/{r.scope}: {r.error}[/red]")
     console.print(table)
+
+    if not no_export:
+        target_paths = sprint or config.sprints.selected
+        summary = _do_export(config, target_paths, fail_fast=False)
+        if summary:
+            console.print(
+                f"[green]Exported {summary.line_count} samples for "
+                f"{len(summary.iteration_paths)} sprint(s) to VictoriaMetrics.[/green]"
+            )
+
     if had_error:
         raise typer.Exit(1)
+
+
+@app.command()
+def export(
+    sprint: list[str] = typer.Option(
+        [],
+        "--sprint",
+        help="Iteration path to export (repeatable). Defaults to config.yaml sprints.selected.",
+    ),
+    config_path: Path = typer.Option(DEFAULT_CONFIG_FILE, "--config"),
+) -> None:
+    """Compute metrics from the local DB and push them to VictoriaMetrics."""
+    config = _load_config(config_path)
+    target_paths = sprint or config.sprints.selected
+    if not target_paths:
+        console.print("[yellow]No sprints selected — nothing to export.[/yellow]")
+        raise typer.Exit(0)
+
+    summary = _do_export(config, target_paths, fail_fast=True)
+    if summary:
+        console.print(
+            f"[green]Exported {summary.line_count} samples for "
+            f"{len(summary.iteration_paths)} sprint(s) to "
+            f"{config.export.victoriametrics_url}[/green]"
+        )
 
 
 @sprints_app.command("list")
