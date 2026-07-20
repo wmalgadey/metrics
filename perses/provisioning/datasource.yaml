@@ -9,4 +9,12 @@ spec:
   plugin:
     kind: PrometheusDatasource
     spec:
-      directUrl: http://victoriametrics:8428
+      # proxy, not directUrl: "victoriametrics" is only resolvable inside the
+      # podman-compose network. directUrl has the browser call that host
+      # directly, which fails with "failed to fetch" outside the container
+      # network. proxy routes the request through the Perses server instead,
+      # which sits on the same network and can reach it.
+      proxy:
+        kind: HTTPProxy
+        spec:
+          url: http://victoriametrics:8428
