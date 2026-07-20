@@ -13,8 +13,8 @@ from metrics.config import (
     SprintsConfig,
     SyncConfig,
 )
+from metrics.ingestion.service import run_sync
 from metrics.shared.duckdb.db import apply_schema
-from metrics.sync.pipeline import run_sync
 
 CFG = AzureDevOpsConfig(organization="my-org", project="MyProject", team="MyTeam")
 REST_BASE = f"{CFG.base_url}/MyProject/MyTeam/_apis/work/teamsettings"

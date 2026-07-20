@@ -9,7 +9,7 @@ import respx
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from metrics.export.vm import run_export
-from metrics.storage import loaders
+from metrics.ingestion.adapters import duckdb_store as loaders
 
 scenarios("idempotent_export.feature")
 

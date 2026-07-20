@@ -11,8 +11,6 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from .azdo.http import AzdoHttpError, make_client
-from .azdo.rest import RestClient
 from .config import (
     DEFAULT_CONFIG_FILE,
     AppConfig,
@@ -22,6 +20,8 @@ from .config import (
     SprintsConfig,
 )
 from .export.vm import ExportSummary, run_export
+from .ingestion.adapters.azdo.http import AzdoHttpError, make_client
+from .ingestion.adapters.azdo.rest import RestClient
 from .shared.duckdb.db import connect
 
 app = typer.Typer(
@@ -169,7 +169,7 @@ def sync(
     config_path: Path = typer.Option(DEFAULT_CONFIG_FILE, "--config"),
 ) -> None:
     """Fetch iterations, capacities, work items and daily snapshots for the selected sprints."""
-    from .sync.pipeline import run_sync
+    from .ingestion.service import run_sync
 
     pat = _require_pat()
     config = _load_config(config_path)

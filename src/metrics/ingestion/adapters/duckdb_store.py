@@ -7,7 +7,7 @@ from typing import Any
 
 import duckdb
 
-from ..config import StatesConfig
+from ...config import StatesConfig
 
 
 def _ts(value: str | None) -> datetime | None:

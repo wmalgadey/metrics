@@ -17,7 +17,7 @@ from metrics.analytics import service as analytics_service
 from metrics.analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
 from metrics.analytics.domain.burndown import ideal_line
 from metrics.analytics.domain.calendar import working_days
-from metrics.storage import loaders
+from metrics.ingestion.adapters import duckdb_store as loaders
 
 scenarios("burndown_ideal_line.feature")
 scenarios("scope_change.feature")

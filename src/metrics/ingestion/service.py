@@ -9,12 +9,13 @@ from uuid import uuid4
 
 import duckdb
 
-from ..azdo.http import make_client
-from ..azdo.odata import ODataClient
-from ..azdo.rest import RestClient
 from ..config import AppConfig
-from ..storage import loaders, raw
-from .watermarks import is_frozen, parse_watermark_date, snapshot_date_range
+from .adapters import duckdb_store as loaders
+from .adapters import raw_archive as raw
+from .adapters.azdo.http import make_client
+from .adapters.azdo.odata import ODataClient
+from .adapters.azdo.rest import RestClient
+from .domain.watermarks import is_frozen, parse_watermark_date, snapshot_date_range
 
 log = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from metrics.analytics import service as analytics_service
 from metrics.analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
 from metrics.config import StatesConfig
-from metrics.storage import loaders
+from metrics.ingestion.adapters import duckdb_store as loaders
 
 scenarios("velocity_rolling_average.feature")
 scenarios("cycle_time.feature")

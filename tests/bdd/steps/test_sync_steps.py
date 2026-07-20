@@ -11,10 +11,10 @@ import httpx
 import respx
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from metrics.azdo.http import make_client
-from metrics.azdo.odata import ODataClient
 from metrics.config import AzureDevOpsConfig
-from metrics.sync.watermarks import is_frozen, parse_watermark_date, snapshot_date_range
+from metrics.ingestion.adapters.azdo.http import make_client
+from metrics.ingestion.adapters.azdo.odata import ODataClient
+from metrics.ingestion.domain.watermarks import is_frozen, parse_watermark_date, snapshot_date_range
 
 scenarios("frozen_sprints.feature")
 scenarios("incremental_sync.feature")

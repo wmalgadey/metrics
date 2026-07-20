@@ -12,7 +12,7 @@ from typing import Any
 
 import httpx
 
-from ..config import AzureDevOpsConfig
+from ....config import AzureDevOpsConfig
 from .http import get_json
 
 # $select lists are mandatory: unrestricted Analytics queries get rejected or
