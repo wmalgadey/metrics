@@ -1,0 +1,37 @@
+# Copy to config.yaml (gitignored) or let `metrics init` generate it.
+azure_devops:
+  organization: my-org          # dev.azure.com/{organization}
+  project: MyProject
+  team: MyTeam                  # the one team whose sprints are analyzed
+  api_version: "7.1"
+  analytics_version: "v4.0-preview"
+
+sprints:
+  # Dedicated selection of iteration paths (edit by hand or via `metrics init`).
+  # Only these sprints are synced, analyzed and exported.
+  selected:
+    - "MyProject\\Sprint 23"
+    - "MyProject\\Sprint 24"
+
+metrics:
+  # Item counts per work item type are the primary measure. All types found in
+  # a sprint are counted dynamically; list types here to exclude them.
+  excluded_types: []
+  # Optional secondary measure. Only evaluated where the field has values.
+  estimation_field: "Microsoft.VSTS.Scheduling.Effort"
+  states:
+    done: ["Done", "Closed"]
+    in_progress: ["Committed", "In Progress", "Active"]
+    removed: ["Removed"]
+  velocity_rolling_window: 3
+
+sync:
+  # Completed sprints are re-synced for this many days after their end date,
+  # then frozen (skipped unless --full).
+  closed_sprint_grace_days: 3
+
+export:
+  victoriametrics_url: "http://victoriametrics:8428"
+
+paths:
+  data_dir: "data"

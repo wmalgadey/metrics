@@ -1,0 +1,18 @@
+# Secrets & local config
+.env
+config.yaml
+
+# Local data (DuckDB, raw API snapshots, VictoriaMetrics storage)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/

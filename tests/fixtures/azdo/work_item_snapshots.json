@@ -1,0 +1,44 @@
+{
+  "value": [
+    {
+      "WorkItemId": 101,
+      "DateValue": "2026-06-01T00:00:00Z",
+      "State": "Committed",
+      "StateCategory": "InProgress",
+      "WorkItemType": "Product Backlog Item",
+      "Effort": 5,
+      "RemainingWork": null,
+      "IterationSK": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "WorkItemId": 102,
+      "DateValue": "2026-06-01T00:00:00Z",
+      "State": "Committed",
+      "StateCategory": "InProgress",
+      "WorkItemType": "Bug",
+      "Effort": 2,
+      "RemainingWork": null,
+      "IterationSK": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "WorkItemId": 101,
+      "DateValue": "2026-06-02T00:00:00Z",
+      "State": "Committed",
+      "StateCategory": "InProgress",
+      "WorkItemType": "Product Backlog Item",
+      "Effort": 5,
+      "RemainingWork": null,
+      "IterationSK": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "WorkItemId": 102,
+      "DateValue": "2026-06-02T00:00:00Z",
+      "State": "Done",
+      "StateCategory": "Completed",
+      "WorkItemType": "Bug",
+      "Effort": 2,
+      "RemainingWork": null,
+      "IterationSK": "11111111-1111-1111-1111-111111111111"
+    }
+  ]
+}

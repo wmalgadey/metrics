@@ -1,0 +1,26 @@
+{
+  "@odata.nextLink": "https://analytics.dev.azure.com/my-org/MyProject/_odata/v4.0-preview/WorkItems?page=2",
+  "value": [
+    {
+      "WorkItemId": 101,
+      "Title": "Implement login",
+      "WorkItemType": "Product Backlog Item",
+      "State": "Committed",
+      "StateCategory": "InProgress",
+      "CreatedDate": "2026-05-30T00:00:00Z",
+      "ActivatedDate": "2026-06-01T00:00:00Z",
+      "ClosedDate": null,
+      "CompletedDate": null,
+      "ChangedDate": "2026-06-05T00:00:00Z",
+      "Effort": 5,
+      "StoryPoints": null,
+      "RemainingWork": null,
+      "CycleTimeDays": null,
+      "LeadTimeDays": null,
+      "ParentWorkItemId": null,
+      "TagNames": "",
+      "IterationSK": "11111111-1111-1111-1111-111111111111",
+      "Iteration": { "IterationPath": "MyProject\\Sprint 23" }
+    }
+  ]
+}

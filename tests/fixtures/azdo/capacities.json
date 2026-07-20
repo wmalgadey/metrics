@@ -1,0 +1,14 @@
+{
+  "teamMembers": [
+    {
+      "teamMember": { "id": "user-1", "displayName": "Alice" },
+      "activities": [{ "capacityPerDay": 6, "name": "Development" }],
+      "daysOff": [{ "start": "2026-06-05T00:00:00Z", "end": "2026-06-05T00:00:00Z" }]
+    },
+    {
+      "teamMember": { "id": "user-2", "displayName": "Bob" },
+      "activities": [{ "capacityPerDay": 4, "name": "Testing" }],
+      "daysOff": []
+    }
+  ]
+}
