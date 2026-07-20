@@ -1,6 +1,6 @@
 """Steps for burndown_ideal_line.feature and scope_change.feature.
 
-Bound directly against today's implementation in metrics.metrics.burndown
+Bound directly against today's implementation in metrics.analytics.burndown
 (private _working_days/_ideal_line included) — this pins the SQL-based
 working-day/day-off semantics before Step 4 replaces it with a pure Python
 calendar port. Re-point these imports when that lands.
@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from metrics.metrics.burndown import _ideal_line, _working_days, sprint_burndown
+from metrics.analytics.burndown import _ideal_line, _working_days, sprint_burndown
 from metrics.storage import loaders
 
 scenarios("burndown_ideal_line.feature")

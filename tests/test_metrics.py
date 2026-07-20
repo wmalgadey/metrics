@@ -3,11 +3,11 @@ from datetime import date
 import duckdb
 import pytest
 
+from metrics.analytics.burndown import sprint_burndown
+from metrics.analytics.capacity import capacity_vs_velocity
+from metrics.analytics.cycletime import cycle_time_percentiles
+from metrics.analytics.velocity import sprint_velocity
 from metrics.config import StatesConfig
-from metrics.metrics.burndown import sprint_burndown
-from metrics.metrics.capacity import capacity_vs_velocity
-from metrics.metrics.cycletime import cycle_time_percentiles
-from metrics.metrics.velocity import sprint_velocity
 from metrics.shared.duckdb.db import apply_schema
 from metrics.storage import loaders
 

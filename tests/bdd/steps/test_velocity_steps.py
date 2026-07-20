@@ -7,9 +7,9 @@ from datetime import date, timedelta
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from metrics.analytics.cycletime import cycle_time_percentiles
+from metrics.analytics.velocity import sprint_velocity
 from metrics.config import StatesConfig
-from metrics.metrics.cycletime import cycle_time_percentiles
-from metrics.metrics.velocity import sprint_velocity
 from metrics.storage import loaders
 
 scenarios("velocity_rolling_average.feature")

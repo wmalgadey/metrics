@@ -11,10 +11,10 @@ from datetime import UTC, date, datetime
 import duckdb
 import httpx
 
-from ..metrics.burndown import BurndownPoint, sprint_burndown
-from ..metrics.capacity import CapacityPoint, capacity_vs_velocity
-from ..metrics.cycletime import CycleTimePercentiles, cycle_time_percentiles
-from ..metrics.velocity import VelocityPoint, sprint_velocity
+from ..analytics.burndown import BurndownPoint, sprint_burndown
+from ..analytics.capacity import CapacityPoint, capacity_vs_velocity
+from ..analytics.cycletime import CycleTimePercentiles, cycle_time_percentiles
+from ..analytics.velocity import VelocityPoint, sprint_velocity
 
 
 def _escape_label(value: str) -> str:
