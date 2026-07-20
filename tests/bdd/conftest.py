@@ -6,7 +6,7 @@ import duckdb
 import pytest
 
 from metrics.config import StatesConfig
-from metrics.storage.db import apply_schema
+from metrics.shared.duckdb.db import apply_schema
 
 DEFAULT_STATES = StatesConfig(
     done=["Done", "Closed"],

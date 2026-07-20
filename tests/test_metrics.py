@@ -8,8 +8,8 @@ from metrics.metrics.burndown import sprint_burndown
 from metrics.metrics.capacity import capacity_vs_velocity
 from metrics.metrics.cycletime import cycle_time_percentiles
 from metrics.metrics.velocity import sprint_velocity
+from metrics.shared.duckdb.db import apply_schema
 from metrics.storage import loaders
-from metrics.storage.db import apply_schema
 
 STATES = StatesConfig(done=["Done"], in_progress=["Committed"], removed=["Removed"])
 

@@ -22,7 +22,7 @@ from .config import (
     SprintsConfig,
 )
 from .export.vm import ExportSummary, run_export
-from .storage.db import connect
+from .shared.duckdb.db import connect
 
 app = typer.Typer(
     add_completion=False, help="Fetch Azure DevOps sprint metrics and store them locally."

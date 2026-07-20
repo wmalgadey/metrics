@@ -13,7 +13,7 @@ from metrics.config import (
     SprintsConfig,
     SyncConfig,
 )
-from metrics.storage.db import apply_schema
+from metrics.shared.duckdb.db import apply_schema
 from metrics.sync.pipeline import run_sync
 
 CFG = AzureDevOpsConfig(organization="my-org", project="MyProject", team="MyTeam")
