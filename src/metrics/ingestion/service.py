@@ -1,34 +1,28 @@
-"""Sync orchestration: fetch from Azure DevOps -> raw layer -> DuckDB, per sprint."""
+"""Sync use case: fetch from a WorkTrackingSource -> RawArchive -> SyncStore,
+per sprint. `run_sync` is a compat wrapper (same signature the CLI and tests
+have always used) that builds the Azure DevOps / DuckDB / filesystem adapters
+and delegates to `sync_sprints`, which depends only on the ports."""
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from uuid import uuid4
 
 import duckdb
 
 from ..config import AppConfig
-from .adapters import duckdb_store as loaders
-from .adapters import raw_archive as raw
 from .adapters.azdo.http import make_client
-from .adapters.azdo.odata import ODataClient
-from .adapters.azdo.rest import RestClient
+from .adapters.azdo.source import AzdoWorkTrackingSource
+from .adapters.duckdb_store import DuckDbSyncStore
+from .adapters.raw_archive import FileRawArchive
+from .domain.model import SyncResult
 from .domain.watermarks import is_frozen, parse_watermark_date, snapshot_date_range
+from .ports import RawArchive, SyncStore, WorkTrackingSource
 
 log = logging.getLogger(__name__)
 
 SOURCE = "azdo"
-
-
-@dataclass
-class SyncResult:
-    entity: str
-    scope: str
-    row_count: int
-    status: str
-    error: str | None = None
 
 
 def new_run_id() -> str:
@@ -40,7 +34,7 @@ def _team_id(config: AppConfig) -> str:
 
 
 def _log_and_collect(
-    conn: duckdb.DuckDBPyConnection,
+    store: SyncStore,
     results: list[SyncResult],
     *,
     run_id: str,
@@ -51,8 +45,7 @@ def _log_and_collect(
     started = datetime.now(tz=UTC)
     try:
         row_count, watermark, raw_path = fn()
-        loaders.record_sync_log(
-            conn,
+        store.record_sync_log(
             run_id=run_id,
             started_at=started,
             finished_at=datetime.now(tz=UTC),
@@ -66,8 +59,7 @@ def _log_and_collect(
         )
         results.append(SyncResult(entity, scope, row_count, "ok"))
     except Exception as exc:  # noqa: BLE001 — recorded and re-raised to the caller's summary
-        loaders.record_sync_log(
-            conn,
+        store.record_sync_log(
             run_id=run_id,
             started_at=started,
             finished_at=datetime.now(tz=UTC),
@@ -83,10 +75,11 @@ def _log_and_collect(
         log.error("sync failed: entity=%s scope=%s: %s", entity, scope, exc)
 
 
-def run_sync(
+def sync_sprints(
+    source: WorkTrackingSource,
+    store: SyncStore,
+    archive: RawArchive,
     config: AppConfig,
-    pat: str,
-    conn: duckdb.DuckDBPyConnection,
     *,
     sprints: list[str] | None = None,
     full: bool = False,
@@ -97,73 +90,59 @@ def run_sync(
     results: list[SyncResult] = []
 
     team_id = _team_id(config)
-    loaders.upsert_project(conn, config.azure_devops.project, config.azure_devops.organization)
-    loaders.upsert_team(conn, team_id, config.azure_devops.project, config.azure_devops.team)
+    store.upsert_project(config.azure_devops.project, config.azure_devops.organization)
+    store.upsert_team(team_id, config.azure_devops.project, config.azure_devops.team)
 
-    with make_client(pat) as client:
-        rest = RestClient(client, config.azure_devops)
-        odata = ODataClient(client, config.azure_devops)
+    selected_paths = set(config.sprints.selected)
+    target_paths = set(sprints) if sprints else selected_paths
 
-        selected_paths = set(config.sprints.selected)
-        target_paths = set(sprints) if sprints else selected_paths
-
-        def _fetch_iterations():
-            all_iterations = rest.list_iterations()
-            raw_path = raw.write_raw(
-                config.data_dir, SOURCE, "iterations", run_id, "global", all_iterations
-            )
-            row_count = loaders.upsert_iterations(
-                conn, config.azure_devops.project, team_id, all_iterations, selected_paths
-            )
-            return row_count, None, raw_path
-
-        _log_and_collect(
-            conn, results, run_id=run_id, entity="iterations", scope="global", fn=_fetch_iterations
+    def _fetch_iterations():
+        all_iterations = source.list_iterations()
+        raw_path = archive.write(SOURCE, "iterations", run_id, "global", all_iterations)
+        row_count = store.upsert_iterations(
+            config.azure_devops.project, team_id, all_iterations, selected_paths
         )
-        if results[-1].status == "error":
-            return results  # can't proceed without iteration metadata
+        return row_count, None, raw_path
 
-        known = {
-            row[0]: row
-            for row in conn.execute(
-                "SELECT path, iteration_id, start_date, end_date, timeframe FROM iterations "
-                "WHERE team_id = ?",
-                [team_id],
-            ).fetchall()
-        }
+    _log_and_collect(
+        store, results, run_id=run_id, entity="iterations", scope="global", fn=_fetch_iterations
+    )
+    if results[-1].status == "error":
+        return results  # can't proceed without iteration metadata
 
-        for path in sorted(target_paths):
-            iteration = known.get(path)
-            if iteration is None:
-                results.append(
-                    SyncResult(
-                        "work_items", path, 0, "error",
-                        f"'{path}' is not a known iteration for team '{team_id}' "
-                        "(check config.yaml sprints.selected)",
-                    )
+    known = {record.path: record for record in store.known_iterations(team_id)}
+
+    for path in sorted(target_paths):
+        record = known.get(path)
+        if record is None:
+            results.append(
+                SyncResult(
+                    "work_items", path, 0, "error",
+                    f"'{path}' is not a known iteration for team '{team_id}' "
+                    "(check config.yaml sprints.selected)",
                 )
-                continue
-            _, iteration_id, start_date, end_date, timeframe = iteration
-
-            if not full and is_frozen(
-                timeframe, end_date, today, config.sync.closed_sprint_grace_days
-            ):
-                results.append(SyncResult("work_items", path, 0, "skipped-frozen"))
-                continue
-
-            _sync_sprint(
-                config, conn, rest, odata, run_id, path, iteration_id,
-                start_date, end_date, team_id, full, today, results,
             )
+            continue
+
+        if not full and is_frozen(
+            record.timeframe, record.end_date, today, config.sync.closed_sprint_grace_days
+        ):
+            results.append(SyncResult("work_items", path, 0, "skipped-frozen"))
+            continue
+
+        _sync_sprint(
+            source, store, archive, config, run_id, path, record.iteration_id,
+            record.start_date, record.end_date, team_id, full, today, results,
+        )
 
     return results
 
 
 def _sync_sprint(
+    source: WorkTrackingSource,
+    store: SyncStore,
+    archive: RawArchive,
     config: AppConfig,
-    conn: duckdb.DuckDBPyConnection,
-    rest: RestClient,
-    odata: ODataClient,
     run_id: str,
     path: str,
     iteration_id: str,
@@ -177,64 +156,72 @@ def _sync_sprint(
     states = config.metrics.states
 
     def _fetch_capacities():
-        capacities = rest.get_capacities(iteration_id)
-        raw_path = raw.write_raw(
-            config.data_dir, SOURCE, "capacities", run_id, path, [capacities]
-        )
-        row_count = loaders.upsert_capacities(conn, iteration_id, team_id, capacities)
+        capacities = source.get_capacities(iteration_id)
+        raw_path = archive.write(SOURCE, "capacities", run_id, path, [capacities])
+        row_count = store.upsert_capacities(iteration_id, team_id, capacities)
         return row_count, None, raw_path
 
     _log_and_collect(
-        conn, results, run_id=run_id, entity="capacities", scope=path, fn=_fetch_capacities
+        store, results, run_id=run_id, entity="capacities", scope=path, fn=_fetch_capacities
     )
 
     def _fetch_days_off():
-        days_off = rest.get_team_days_off(iteration_id)
-        raw_path = raw.write_raw(
-            config.data_dir, SOURCE, "team_days_off", run_id, path, [days_off]
-        )
-        row_count = loaders.upsert_team_days_off(conn, iteration_id, team_id, days_off)
+        days_off = source.get_team_days_off(iteration_id)
+        raw_path = archive.write(SOURCE, "team_days_off", run_id, path, [days_off])
+        row_count = store.upsert_team_days_off(iteration_id, team_id, days_off)
         return row_count, None, raw_path
 
     _log_and_collect(
-        conn, results, run_id=run_id, entity="team_days_off", scope=path, fn=_fetch_days_off
+        store, results, run_id=run_id, entity="team_days_off", scope=path, fn=_fetch_days_off
     )
 
     def _fetch_work_items():
-        watermark = None if full else loaders.get_watermark(conn, SOURCE, "work_items", path)
+        watermark = None if full else store.get_watermark(SOURCE, "work_items", path)
         changed_since = parse_watermark_date(watermark)
-        items = list(odata.work_items(path, changed_since))
-        raw_path = raw.write_raw(config.data_dir, SOURCE, "work_items", run_id, path, items)
-        row_count = loaders.upsert_work_items(
-            conn, config.azure_devops.project, path, items, states
-        )
+        items = list(source.work_items(path, changed_since))
+        raw_path = archive.write(SOURCE, "work_items", run_id, path, items)
+        row_count = store.upsert_work_items(config.azure_devops.project, path, items, states)
         new_watermark = max(
             (i.get("ChangedDate") for i in items if i.get("ChangedDate")), default=watermark
         )
         return row_count, new_watermark, raw_path
 
     _log_and_collect(
-        conn, results, run_id=run_id, entity="work_items", scope=path, fn=_fetch_work_items
+        store, results, run_id=run_id, entity="work_items", scope=path, fn=_fetch_work_items
     )
 
     def _fetch_snapshots():
-        watermark = None if full else loaders.get_watermark(
-            conn, SOURCE, "work_item_snapshots", path
-        )
+        watermark = None if full else store.get_watermark(SOURCE, "work_item_snapshots", path)
         watermark_date = parse_watermark_date(watermark)
         sprint_start = start_date or today
         sprint_end = end_date or today
         date_from, date_to = snapshot_date_range(sprint_start, sprint_end, watermark_date, today)
-        snapshots = list(odata.work_item_snapshots(path, date_from, date_to))
-        raw_path = raw.write_raw(
-            config.data_dir, SOURCE, "work_item_snapshots", run_id, path, snapshots
-        )
-        row_count = loaders.upsert_work_item_snapshots(conn, path, snapshots, states)
+        snapshots = list(source.work_item_snapshots(path, date_from, date_to))
+        raw_path = archive.write(SOURCE, "work_item_snapshots", run_id, path, snapshots)
+        row_count = store.upsert_work_item_snapshots(path, snapshots, states)
         new_watermark = max(
             (s.get("DateValue") for s in snapshots if s.get("DateValue")), default=watermark
         )
         return row_count, new_watermark, raw_path
 
     _log_and_collect(
-        conn, results, run_id=run_id, entity="work_item_snapshots", scope=path, fn=_fetch_snapshots
+        store, results, run_id=run_id, entity="work_item_snapshots", scope=path,
+        fn=_fetch_snapshots,
     )
+
+
+def run_sync(
+    config: AppConfig,
+    pat: str,
+    conn: duckdb.DuckDBPyConnection,
+    *,
+    sprints: list[str] | None = None,
+    full: bool = False,
+    today: date | None = None,
+) -> list[SyncResult]:
+    """Compat entry point: builds the real adapters and calls sync_sprints()."""
+    store = DuckDbSyncStore(conn)
+    archive = FileRawArchive(config.data_dir)
+    with make_client(pat) as client:
+        source = AzdoWorkTrackingSource(client, config.azure_devops)
+        return sync_sprints(source, store, archive, config, sprints=sprints, full=full, today=today)
