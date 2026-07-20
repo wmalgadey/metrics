@@ -1,7 +1,6 @@
 """Sync use case: fetch from a WorkTrackingSource -> RawArchive -> SyncStore,
-per sprint. `run_sync` is a compat wrapper (same signature the CLI and tests
-have always used) that builds the Azure DevOps / DuckDB / filesystem adapters
-and delegates to `sync_sprints`, which depends only on the ports."""
+per sprint. Depends only on the ports — the CLI composition root builds the
+concrete adapters (see cli.py) and calls sync_sprints() directly."""
 
 from __future__ import annotations
 
@@ -9,13 +8,7 @@ import logging
 from datetime import UTC, date, datetime
 from uuid import uuid4
 
-import duckdb
-
 from ..config import AppConfig
-from .adapters.azdo.http import make_client
-from .adapters.azdo.source import AzdoWorkTrackingSource
-from .adapters.duckdb_store import DuckDbSyncStore
-from .adapters.raw_archive import FileRawArchive
 from .domain.model import SyncResult
 from .domain.watermarks import is_frozen, parse_watermark_date, snapshot_date_range
 from .ports import RawArchive, SyncStore, WorkTrackingSource
@@ -208,20 +201,3 @@ def _sync_sprint(
         store, results, run_id=run_id, entity="work_item_snapshots", scope=path,
         fn=_fetch_snapshots,
     )
-
-
-def run_sync(
-    config: AppConfig,
-    pat: str,
-    conn: duckdb.DuckDBPyConnection,
-    *,
-    sprints: list[str] | None = None,
-    full: bool = False,
-    today: date | None = None,
-) -> list[SyncResult]:
-    """Compat entry point: builds the real adapters and calls sync_sprints()."""
-    store = DuckDbSyncStore(conn)
-    archive = FileRawArchive(config.data_dir)
-    with make_client(pat) as client:
-        source = AzdoWorkTrackingSource(client, config.azure_devops)
-        return sync_sprints(source, store, archive, config, sprints=sprints, full=full, today=today)

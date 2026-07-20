@@ -8,8 +8,10 @@ import httpx
 import respx
 from pytest_bdd import given, parsers, scenarios, then, when
 
+from metrics.analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
 from metrics.ingestion.adapters import duckdb_store as loaders
-from metrics.publishing.service import run_export
+from metrics.publishing.adapters.victoriametrics import VictoriaMetricsSink
+from metrics.publishing.service import publish_metrics
 
 scenarios("idempotent_export.feature")
 
@@ -58,27 +60,31 @@ def synced_sprint_with_day(conn, states, bdd_context, day):
 
 @when("the metrics are exported twice")
 def export_twice(conn, bdd_context):
+    repo = DuckDbSprintMetricsRepository(conn)
+    sink = VictoriaMetricsSink(VM_URL)
     with respx.mock:
         route = respx.post(f"{VM_URL}/api/v1/import/prometheus").mock(
             return_value=httpx.Response(204)
         )
         for _ in range(2):
-            run_export(
-                conn, project="Proj", team="Team", iteration_paths=[PATH],
-                rolling_window=3, vm_url=VM_URL,
+            publish_metrics(
+                repo, sink, project="Proj", team="Team", iteration_paths=[PATH],
+                rolling_window=3,
             )
         bdd_context["push_bodies"] = [call.request.content for call in route.calls]
 
 
 @when("the metrics are exported")
 def export_once(conn, bdd_context):
+    repo = DuckDbSprintMetricsRepository(conn)
+    sink = VictoriaMetricsSink(VM_URL)
     with respx.mock:
         route = respx.post(f"{VM_URL}/api/v1/import/prometheus").mock(
             return_value=httpx.Response(204)
         )
-        run_export(
-            conn, project="Proj", team="Team", iteration_paths=[PATH],
-            rolling_window=3, vm_url=VM_URL,
+        publish_metrics(
+            repo, sink, project="Proj", team="Team", iteration_paths=[PATH],
+            rolling_window=3,
         )
         bdd_context["push_body"] = route.calls[0].request.content
 
