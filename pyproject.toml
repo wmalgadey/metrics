@@ -42,3 +42,5 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# B008: Typer requires calling typer.Option()/typer.Argument() in argument defaults.
+ignore = ["B008"]
