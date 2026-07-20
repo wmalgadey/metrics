@@ -5,7 +5,7 @@ metadata:
 spec:
   display:
     name: "Velocity"
-  duration: 180d
+  duration: 1y
   variables:
     - kind: ListVariable
       spec:
@@ -70,6 +70,10 @@ spec:
           spec:
             legend:
               position: bottom
+            visual:
+              showPoints: "always"
+              pointRadius: 4
+              connectNulls: true
         queries:
           - kind: TimeSeriesQuery
             spec:
@@ -78,7 +82,8 @@ spec:
                 spec:
                   seriesNameFormat: "{{work_item_type}} — rolling avg"
                   query: >-
-                    azdo_sprint_velocity_rolling_avg_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+                    max by (work_item_type)
+                    (azdo_sprint_velocity_rolling_avg_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
   layouts:
     - kind: Grid
       spec:

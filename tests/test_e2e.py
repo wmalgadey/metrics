@@ -94,6 +94,12 @@ def test_sync_then_export_end_to_end(tmp_path, monkeypatch):
     sent_bodies = b"".join(call.request.content for call in vm_route.calls)
     assert b"azdo_sprint_open_items" in sent_bodies
     assert b"azdo_cycle_time_days" in sent_bodies
+    # cycle time is exported per sprint so dashboards can trend it
+    cycle_lines = [
+        line for line in sent_bodies.split(b"\n") if line.startswith(b"azdo_cycle_time_days")
+    ]
+    assert cycle_lines
+    assert all(b'sprint="MyProject/Sprint 23"' in line for line in cycle_lines)
 
 
 @respx.mock

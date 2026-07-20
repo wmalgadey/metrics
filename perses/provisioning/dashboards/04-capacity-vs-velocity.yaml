@@ -5,7 +5,7 @@ metadata:
 spec:
   display:
     name: "Capacity vs. Velocity"
-  duration: 180d
+  duration: 1y
   variables:
     - kind: ListVariable
       spec:
@@ -60,14 +60,18 @@ spec:
           spec:
             legend:
               position: bottom
+            visual:
+              showPoints: "always"
+              pointRadius: 4
+              connectNulls: true
         queries:
           - kind: TimeSeriesQuery
             spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  seriesNameFormat: "{{sprint}}"
-                  query: 'azdo_sprint_items_per_capacity_hour{sprint=~"$sprint"}'
+                  seriesNameFormat: "items / capacity-hour"
+                  query: 'max(azdo_sprint_items_per_capacity_hour{sprint=~"$sprint"})'
   layouts:
     - kind: Grid
       spec:

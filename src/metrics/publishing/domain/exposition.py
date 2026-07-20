@@ -38,12 +38,13 @@ def _day_ts_ms(day: date) -> int:
     return int(datetime(day.year, day.month, day.day, tzinfo=UTC).timestamp() * 1000)
 
 
-def _now_ts_ms() -> int:
-    return int(datetime.now(tz=UTC).timestamp() * 1000)
-
-
 def _date_ts_ms(d: date | None) -> int:
-    return _day_ts_ms(d) if d else _now_ts_ms()
+    """Sprint-summary samples sit at the sprint end date, capped at today
+    (UTC): running/future sprints must not land in the future, outside the
+    dashboard's [now - duration, now] window. Midnight (not now()) keeps
+    repeated exports on the same day byte-identical."""
+    today = datetime.now(tz=UTC).date()
+    return _day_ts_ms(min(d, today) if d else today)
 
 
 def render_burndown(points: Iterable[BurndownPoint], project: str, team: str) -> list[str]:
@@ -124,9 +125,12 @@ def render_cycle_time(
     percentiles: Iterable[CycleTimePercentiles], project: str, team: str
 ) -> list[str]:
     lines = []
-    ts = _now_ts_ms()
     for p in percentiles:
-        base_labels = {"project": project, "team": team, "work_item_type": p.work_item_type}
+        base_labels = {
+            "project": project, "team": team,
+            "sprint": _sprint_label(p.iteration_path), "work_item_type": p.work_item_type,
+        }
+        ts = _date_ts_ms(p.end_date)
         for quantile, cycle_val, lead_val in [
             ("0.5", p.cycle_time_p50, p.lead_time_p50),
             ("0.85", p.cycle_time_p85, p.lead_time_p85),

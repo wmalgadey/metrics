@@ -5,8 +5,23 @@ metadata:
 spec:
   display:
     name: "Cycle Time"
-  duration: 180d
+  duration: 1y
   variables:
+    - kind: ListVariable
+      spec:
+        name: sprint
+        display:
+          name: Sprint
+        allowMultiple: true
+        allowAllValue: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            labelName: sprint
+            # Deliberately not azdo_cycle_time_days: that metric only exists
+            # for sprints with completed items, which would hide sprints here.
+            matchers:
+              - azdo_sprint_scope_items{}
     - kind: ListVariable
       spec:
         name: work_item_type
@@ -19,7 +34,7 @@ spec:
           spec:
             labelName: work_item_type
             matchers:
-              - azdo_cycle_time_days{}
+              - azdo_sprint_scope_items{}
   panels:
     cycle_time:
       kind: Panel
@@ -30,12 +45,17 @@ spec:
             Perses has no native box plot, so percentiles are shown as
             separate series per work item type. Cycle time = first entering
             an "in progress" state to reaching "done" (config.yaml
-            metrics.states).
+            metrics.states). One point per sprint, plotted at the sprint's
+            end date.
         plugin:
           kind: TimeSeriesChart
           spec:
             legend:
               position: bottom
+            visual:
+              showPoints: "always"
+              pointRadius: 4
+              connectNulls: true
         queries:
           - kind: TimeSeriesQuery
             spec:
@@ -43,18 +63,24 @@ spec:
                 kind: PrometheusTimeSeriesQuery
                 spec:
                   seriesNameFormat: "{{work_item_type}} — P{{quantile}}"
-                  query: 'azdo_cycle_time_days{work_item_type=~"$work_item_type"}'
+                  query: >-
+                    max by (work_item_type, quantile)
+                    (azdo_cycle_time_days{sprint=~"$sprint", work_item_type=~"$work_item_type"})
     lead_time:
       kind: Panel
       spec:
         display:
           name: "Lead Time — P50 / P85 / P95 (days)"
-          description: "Lead time = created to done."
+          description: "Lead time = created to done. One point per sprint, plotted at the sprint's end date."
         plugin:
           kind: TimeSeriesChart
           spec:
             legend:
               position: bottom
+            visual:
+              showPoints: "always"
+              pointRadius: 4
+              connectNulls: true
         queries:
           - kind: TimeSeriesQuery
             spec:
@@ -62,7 +88,9 @@ spec:
                 kind: PrometheusTimeSeriesQuery
                 spec:
                   seriesNameFormat: "{{work_item_type}} — P{{quantile}}"
-                  query: 'azdo_lead_time_days{work_item_type=~"$work_item_type"}'
+                  query: >-
+                    max by (work_item_type, quantile)
+                    (azdo_lead_time_days{sprint=~"$sprint", work_item_type=~"$work_item_type"})
   layouts:
     - kind: Grid
       spec:

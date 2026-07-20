@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import respx
@@ -59,6 +59,7 @@ def test_render_velocity_and_capacity_and_cycletime():
     ]
     ct = [
         CycleTimePercentiles(
+            iteration_path="Proj\\Sprint 1", end_date=date(2026, 6, 5),
             work_item_type="Bug", count=5,
             cycle_time_p50=3.0, cycle_time_p85=4.5, cycle_time_p95=5.0,
             lead_time_p50=4.0, lead_time_p85=5.5, lead_time_p95=6.0,
@@ -73,6 +74,38 @@ def test_render_velocity_and_capacity_and_cycletime():
     assert any(line.startswith("azdo_sprint_items_per_capacity_hour{") for line in c_lines)
     assert any('quantile="0.5"' in line for line in ct_lines)
     assert len(ct_lines) == 6  # 3 quantiles * (cycle + lead)
+    end_ts = str(int(datetime(2026, 6, 5, tzinfo=UTC).timestamp() * 1000))
+    assert all('sprint="Proj/Sprint 1"' in line for line in ct_lines)
+    assert all(line.endswith(f" {end_ts}") for line in ct_lines)
+
+
+def test_summary_timestamps_capped_at_today():
+    # running/future sprints must not produce samples with future timestamps,
+    # or they'd fall outside the dashboard's [now - duration, now] window
+    future = date.today() + timedelta(days=7)
+    today_ts = str(
+        int(
+            datetime.combine(
+                datetime.now(tz=UTC).date(), datetime.min.time(), tzinfo=UTC
+            ).timestamp()
+            * 1000
+        )
+    )
+    v = [
+        VelocityPoint(
+            iteration_path="Proj\\Sprint 9", work_item_type="Bug",
+            start_date=future - timedelta(days=5), end_date=future,
+            planned_items=1, completed_items=0, rolling_avg_items=0.0,
+        ),
+        VelocityPoint(
+            iteration_path="Proj\\Sprint 10", work_item_type="Bug",
+            start_date=None, end_date=None,
+            planned_items=1, completed_items=0, rolling_avg_items=0.0,
+        ),
+    ]
+    lines = render_velocity(v, "Proj", "MyTeam")
+    assert lines
+    assert all(line.endswith(f" {today_ts}") for line in lines)
 
 
 def test_render_scope_change():

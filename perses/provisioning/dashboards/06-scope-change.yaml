@@ -5,7 +5,7 @@ metadata:
 spec:
   display:
     name: "Scope Change"
-  duration: 180d
+  duration: 1y
   variables:
     - kind: ListVariable
       spec:
@@ -18,8 +18,10 @@ spec:
           kind: PrometheusLabelValuesVariable
           spec:
             labelName: sprint
+            # Deliberately not azdo_sprint_scope_change_rate: that metric is
+            # skipped for sprints without items, which would hide them here.
             matchers:
-              - azdo_sprint_scope_change_rate{}
+              - azdo_sprint_scope_items{}
     - kind: ListVariable
       spec:
         name: work_item_type
@@ -32,7 +34,7 @@ spec:
           spec:
             labelName: work_item_type
             matchers:
-              - azdo_sprint_scope_change_rate{}
+              - azdo_sprint_scope_items{}
   panels:
     note:
       kind: Panel
@@ -46,28 +48,48 @@ spec:
               "Added mid-sprint" counts items whose **first** appearance in a
               sprint came after day one — i.e. work pulled onto the board
               after planning, rather than committed upfront. Scope change
-              rate = added mid-sprint / final scope. Select `$sprint = *` to
-              compare the rate across every synced sprint at a glance.
+              rate = added mid-sprint / final scope. The trend line plots one
+              point per sprint at its end date; green/yellow/red bands mark
+              healthy (<10%), elevated (10–25%) and high (>25%) churn.
     scope_change_rate:
       kind: Panel
       spec:
         display:
-          name: "Scope Change Rate per Sprint"
-          description: Share of final scope that was added after day one.
+          name: "Scope Change Rate — Trend"
+          description: >-
+            Share of final scope that was added after day one, one point per
+            sprint at its end date.
         plugin:
-          kind: BarChart
+          kind: TimeSeriesChart
           spec:
-            calculation: last
-            format: { unit: percent-decimal }
+            legend:
+              position: bottom
+            yAxis:
+              format: { unit: percent-decimal }
+            visual:
+              showPoints: "always"
+              pointRadius: 4
+              connectNulls: true
+            thresholds:
+              mode: absolute
+              defaultColor: "#28a745"
+              steps:
+                - value: 0.10
+                  color: "#f0ad4e"
+                  name: elevated
+                - value: 0.25
+                  color: "#d9534f"
+                  name: high
         queries:
           - kind: TimeSeriesQuery
             spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  seriesNameFormat: "{{sprint}} / {{work_item_type}}"
+                  seriesNameFormat: "{{work_item_type}} — scope change rate"
                   query: >-
-                    azdo_sprint_scope_change_rate{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+                    max by (work_item_type)
+                    (azdo_sprint_scope_change_rate{sprint=~"$sprint", work_item_type=~"$work_item_type"})
     planned_vs_added:
       kind: Panel
       spec:
@@ -98,22 +120,31 @@ spec:
       kind: Panel
       spec:
         display:
-          name: "Completion Rate per Sprint"
-          description: Completed items / final scope.
+          name: "Completion Rate — Trend"
+          description: >-
+            Completed items / final scope, one point per sprint at its end
+            date.
         plugin:
-          kind: BarChart
+          kind: TimeSeriesChart
           spec:
-            calculation: last
-            format: { unit: percent-decimal }
+            legend:
+              position: bottom
+            yAxis:
+              format: { unit: percent-decimal }
+            visual:
+              showPoints: "always"
+              pointRadius: 4
+              connectNulls: true
         queries:
           - kind: TimeSeriesQuery
             spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  seriesNameFormat: "{{sprint}} / {{work_item_type}}"
+                  seriesNameFormat: "{{work_item_type}} — completion rate"
                   query: >-
-                    azdo_sprint_completion_rate{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+                    max by (work_item_type)
+                    (azdo_sprint_completion_rate{sprint=~"$sprint", work_item_type=~"$work_item_type"})
   layouts:
     - kind: Grid
       spec:
