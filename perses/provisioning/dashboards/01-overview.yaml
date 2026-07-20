@@ -17,7 +17,6 @@ spec:
         plugin:
           kind: PrometheusLabelValuesVariable
           spec:
-            datasource: victoriametrics
             labelName: sprint
             matchers:
               - azdo_sprint_scope_items{}
@@ -31,7 +30,6 @@ spec:
         plugin:
           kind: PrometheusLabelValuesVariable
           spec:
-            datasource: victoriametrics
             labelName: work_item_type
             matchers:
               - azdo_sprint_scope_items{}
@@ -52,7 +50,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   query: >-
                     sum(azdo_sprint_planned_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
     completed_items:
@@ -71,7 +68,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   query: >-
                     sum(azdo_sprint_completed_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
     capacity_hours:
@@ -83,14 +79,13 @@ spec:
           kind: StatChart
           spec:
             calculation: last
-            format: { unit: decimal, suffix: h }
+            format: { unit: hours }
         queries:
           - kind: TimeSeriesQuery
             spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   query: 'sum(azdo_sprint_capacity_hours{sprint=~"$sprint"})'
     avg_cycle_time:
       kind: Panel
@@ -101,14 +96,13 @@ spec:
           kind: StatChart
           spec:
             calculation: last
-            format: { unit: decimal, suffix: d }
+            format: { unit: days }
         queries:
           - kind: TimeSeriesQuery
             spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   query: >-
                     avg(azdo_cycle_time_days{work_item_type=~"$work_item_type", quantile="0.5"})
   layouts:

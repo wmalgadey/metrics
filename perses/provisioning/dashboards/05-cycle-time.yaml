@@ -17,7 +17,6 @@ spec:
         plugin:
           kind: PrometheusLabelValuesVariable
           spec:
-            datasource: victoriametrics
             labelName: work_item_type
             matchers:
               - azdo_cycle_time_days{}
@@ -43,7 +42,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   seriesNameFormat: "{{work_item_type}} — P{{quantile}}"
                   query: 'azdo_cycle_time_days{work_item_type=~"$work_item_type"}'
     lead_time:
@@ -63,7 +61,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   seriesNameFormat: "{{work_item_type}} — P{{quantile}}"
                   query: 'azdo_lead_time_days{work_item_type=~"$work_item_type"}'
   layouts:

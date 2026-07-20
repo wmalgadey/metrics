@@ -17,7 +17,6 @@ spec:
         plugin:
           kind: PrometheusLabelValuesVariable
           spec:
-            datasource: victoriametrics
             labelName: sprint
             matchers:
               - azdo_sprint_scope_items{}
@@ -31,7 +30,6 @@ spec:
         plugin:
           kind: PrometheusLabelValuesVariable
           spec:
-            datasource: victoriametrics
             labelName: work_item_type
             matchers:
               - azdo_sprint_scope_items{}
@@ -56,7 +54,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   seriesNameFormat: "{{sprint}} / {{work_item_type}} — open"
                   query: >-
                     azdo_sprint_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
@@ -65,7 +62,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   seriesNameFormat: "{{sprint}} / {{work_item_type}} — ideal"
                   query: >-
                     azdo_sprint_ideal_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
@@ -74,7 +70,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   seriesNameFormat: "{{sprint}} / {{work_item_type}} — scope"
                   query: >-
                     azdo_sprint_scope_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
@@ -95,7 +90,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   seriesNameFormat: "{{sprint}} / {{work_item_type}} — remaining effort"
                   query: >-
                     azdo_sprint_remaining_effort{sprint=~"$sprint", work_item_type=~"$work_item_type"}

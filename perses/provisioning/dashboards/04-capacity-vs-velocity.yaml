@@ -16,7 +16,6 @@ spec:
         plugin:
           kind: PrometheusLabelValuesVariable
           spec:
-            datasource: victoriametrics
             labelName: sprint
             matchers:
               - azdo_sprint_capacity_hours{}
@@ -41,14 +40,14 @@ spec:
           name: "Capacity per Sprint (hours)"
         plugin:
           kind: BarChart
-          spec: {}
+          spec:
+            calculation: last
         queries:
           - kind: TimeSeriesQuery
             spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   seriesNameFormat: "{{sprint}}"
                   query: 'azdo_sprint_capacity_hours{sprint=~"$sprint"}'
     items_per_capacity_hour:
@@ -67,7 +66,6 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  datasource: victoriametrics
                   seriesNameFormat: "{{sprint}}"
                   query: 'azdo_sprint_items_per_capacity_hour{sprint=~"$sprint"}'
   layouts:
