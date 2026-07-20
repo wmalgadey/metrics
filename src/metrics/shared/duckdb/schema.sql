@@ -28,8 +28,17 @@ CREATE TABLE IF NOT EXISTS iterations (
     UNIQUE (team_id, path)
 );
 
+-- iteration_id intentionally has no REFERENCES iterations(iteration_id) here:
+-- DuckDB rewrites UPDATE/ON CONFLICT DO UPDATE on an indexed table as
+-- DELETE+INSERT, and its eager FK check rejects the DELETE half whenever a
+-- child row still references the key — even though the INSERT half would
+-- immediately restore it. iterations.timeframe/is_selected legitimately
+-- change on almost every sync, so this table WILL have children by then.
+-- Referential integrity is enforced in application code instead: iteration_id
+-- values here always originate from a row already upserted into iterations
+-- (see ingestion/service.py::_sync_sprint).
 CREATE TABLE IF NOT EXISTS capacities (
-    iteration_id        VARCHAR NOT NULL REFERENCES iterations(iteration_id),
+    iteration_id        VARCHAR NOT NULL,
     team_id              VARCHAR NOT NULL,
     team_member_id       VARCHAR NOT NULL,
     member_name          VARCHAR,
@@ -39,14 +48,14 @@ CREATE TABLE IF NOT EXISTS capacities (
 );
 
 CREATE TABLE IF NOT EXISTS member_days_off (
-    iteration_id   VARCHAR NOT NULL REFERENCES iterations(iteration_id),
+    iteration_id   VARCHAR NOT NULL,
     team_member_id VARCHAR NOT NULL,
     start_date     DATE NOT NULL,
     end_date       DATE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS team_days_off (
-    iteration_id VARCHAR NOT NULL REFERENCES iterations(iteration_id),
+    iteration_id VARCHAR NOT NULL,
     team_id      VARCHAR NOT NULL,
     start_date   DATE NOT NULL,
     end_date     DATE NOT NULL
