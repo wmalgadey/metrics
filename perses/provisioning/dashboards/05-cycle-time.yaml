@@ -1,0 +1,82 @@
+kind: Dashboard
+metadata:
+  name: cycle-time
+  project: azdo-metrics
+spec:
+  display:
+    name: "Cycle Time"
+  duration: 180d
+  variables:
+    - kind: ListVariable
+      spec:
+        name: work_item_type
+        display:
+          name: Work Item Type
+        allowMultiple: true
+        allowAllValue: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            datasource: victoriametrics
+            labelName: work_item_type
+            matchers:
+              - azdo_cycle_time_days{}
+  panels:
+    cycle_time:
+      kind: Panel
+      spec:
+        display:
+          name: "Cycle Time — P50 / P85 / P95 (days)"
+          description: >-
+            Perses has no native box plot, so percentiles are shown as
+            separate series per work item type. Cycle time = first entering
+            an "in progress" state to reaching "done" (config.yaml
+            metrics.states).
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{work_item_type}} — P{{quantile}}"
+                  query: 'azdo_cycle_time_days{work_item_type=~"$work_item_type"}'
+    lead_time:
+      kind: Panel
+      spec:
+        display:
+          name: "Lead Time — P50 / P85 / P95 (days)"
+          description: "Lead time = created to done."
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{work_item_type}} — P{{quantile}}"
+                  query: 'azdo_lead_time_days{work_item_type=~"$work_item_type"}'
+  layouts:
+    - kind: Grid
+      spec:
+        items:
+          - x: 0
+            y: 0
+            width: 24
+            height: 9
+            content: { $ref: "#/spec/panels/cycle_time" }
+          - x: 0
+            y: 9
+            width: 24
+            height: 9
+            content: { $ref: "#/spec/panels/lead_time" }

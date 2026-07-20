@@ -1,0 +1,99 @@
+kind: Dashboard
+metadata:
+  name: sprint-velocity
+  project: azdo-metrics
+spec:
+  display:
+    name: "Velocity"
+  duration: 180d
+  variables:
+    - kind: ListVariable
+      spec:
+        name: sprint
+        display:
+          name: Sprint
+        allowMultiple: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            datasource: victoriametrics
+            labelName: sprint
+            matchers:
+              - azdo_sprint_scope_items{}
+    - kind: ListVariable
+      spec:
+        name: work_item_type
+        display:
+          name: Work Item Type
+        allowMultiple: true
+        allowAllValue: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            datasource: victoriametrics
+            labelName: work_item_type
+            matchers:
+              - azdo_sprint_scope_items{}
+  panels:
+    planned_vs_completed:
+      kind: Panel
+      spec:
+        display:
+          name: "Planned vs. Completed Items per Sprint"
+        plugin:
+          kind: BarChart
+          spec: {}
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — planned"
+                  query: >-
+                    azdo_sprint_planned_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — completed"
+                  query: >-
+                    azdo_sprint_completed_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+    rolling_average:
+      kind: Panel
+      spec:
+        display:
+          name: "Completed Items — Rolling Average"
+          description: Window size is set by metrics.velocity_rolling_window in config.yaml.
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{work_item_type}} — rolling avg"
+                  query: >-
+                    azdo_sprint_velocity_rolling_avg_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+  layouts:
+    - kind: Grid
+      spec:
+        items:
+          - x: 0
+            y: 0
+            width: 24
+            height: 10
+            content: { $ref: "#/spec/panels/planned_vs_completed" }
+          - x: 0
+            y: 10
+            width: 24
+            height: 8
+            content: { $ref: "#/spec/panels/rolling_average" }

@@ -1,0 +1,115 @@
+kind: Dashboard
+metadata:
+  name: sprint-burndown
+  project: azdo-metrics
+spec:
+  display:
+    name: "Burndown"
+  duration: 30d
+  variables:
+    - kind: ListVariable
+      spec:
+        name: sprint
+        display:
+          name: Sprint
+          description: Dedicated sprint selection — pick one or more sprints to overlay.
+        allowMultiple: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            datasource: victoriametrics
+            labelName: sprint
+            matchers:
+              - azdo_sprint_scope_items{}
+    - kind: ListVariable
+      spec:
+        name: work_item_type
+        display:
+          name: Work Item Type
+        allowMultiple: true
+        allowAllValue: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            datasource: victoriametrics
+            labelName: work_item_type
+            matchers:
+              - azdo_sprint_scope_items{}
+  panels:
+    burndown_items:
+      kind: Panel
+      spec:
+        display:
+          name: "Open Items — Actual vs. Ideal vs. Scope"
+          description: >-
+            Ideal is a linear line from day-1 scope to zero on the sprint's last
+            working day, flat over weekends/team days off. Scope rising mid-sprint
+            indicates items were added.
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — open"
+                  query: >-
+                    azdo_sprint_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — ideal"
+                  query: >-
+                    azdo_sprint_ideal_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — scope"
+                  query: >-
+                    azdo_sprint_scope_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+    burndown_effort:
+      kind: Panel
+      spec:
+        display:
+          name: "Remaining Effort (optional secondary measure)"
+          description: Only populated if the team tracks Effort on work items.
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — remaining effort"
+                  query: >-
+                    azdo_sprint_remaining_effort{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+  layouts:
+    - kind: Grid
+      spec:
+        items:
+          - x: 0
+            y: 0
+            width: 24
+            height: 10
+            content: { $ref: "#/spec/panels/burndown_items" }
+          - x: 0
+            y: 10
+            width: 24
+            height: 8
+            content: { $ref: "#/spec/panels/burndown_effort" }

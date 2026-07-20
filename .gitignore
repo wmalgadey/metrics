@@ -1,6 +1,6 @@
-# Secrets & local config
+# Secrets & local config (repo-root only — perses/config.yaml is checked in)
 .env
-config.yaml
+/config.yaml
 
 # Local data (DuckDB, raw API snapshots, VictoriaMetrics storage)
 data/

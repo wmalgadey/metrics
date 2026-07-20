@@ -1,0 +1,12 @@
+kind: Datasource
+metadata:
+  name: victoriametrics
+  project: azdo-metrics
+spec:
+  default: true
+  display:
+    name: VictoriaMetrics
+  plugin:
+    kind: PrometheusDatasource
+    spec:
+      directUrl: http://victoriametrics:8428

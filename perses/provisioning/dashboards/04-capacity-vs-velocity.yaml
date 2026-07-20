@@ -1,0 +1,91 @@
+kind: Dashboard
+metadata:
+  name: capacity-vs-velocity
+  project: azdo-metrics
+spec:
+  display:
+    name: "Capacity vs. Velocity"
+  duration: 180d
+  variables:
+    - kind: ListVariable
+      spec:
+        name: sprint
+        display:
+          name: Sprint
+        allowMultiple: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            datasource: victoriametrics
+            labelName: sprint
+            matchers:
+              - azdo_sprint_capacity_hours{}
+  panels:
+    note:
+      kind: Panel
+      spec:
+        display:
+          name: "Reading this dashboard"
+        plugin:
+          kind: Markdown
+          spec:
+            text: >-
+              Capacity is measured in **person-hours**, velocity in **item
+              counts** — the units are not directly comparable. The trend
+              line (items per capacity-hour) is useful to compare *relative*
+              changes sprint over sprint, not as an absolute ratio.
+    capacity_hours:
+      kind: Panel
+      spec:
+        display:
+          name: "Capacity per Sprint (hours)"
+        plugin:
+          kind: BarChart
+          spec: {}
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{sprint}}"
+                  query: 'azdo_sprint_capacity_hours{sprint=~"$sprint"}'
+    items_per_capacity_hour:
+      kind: Panel
+      spec:
+        display:
+          name: "Items per Capacity-Hour (trend)"
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  seriesNameFormat: "{{sprint}}"
+                  query: 'azdo_sprint_items_per_capacity_hour{sprint=~"$sprint"}'
+  layouts:
+    - kind: Grid
+      spec:
+        items:
+          - x: 0
+            y: 0
+            width: 24
+            height: 3
+            content: { $ref: "#/spec/panels/note" }
+          - x: 0
+            y: 3
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/capacity_hours" }
+          - x: 12
+            y: 3
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/items_per_capacity_hour" }

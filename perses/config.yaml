@@ -1,0 +1,14 @@
+# Perses server configuration.
+# No auth for local/offline use — this dashboard only ever talks to a local
+# VictoriaMetrics instance holding non-sensitive sprint metrics.
+security:
+  enable_auth: false
+
+# GitOps-style provisioning: Perses periodically (re-)reads these files and
+# upserts the resources (Project, Datasource, Dashboards) into its database.
+# Edit the YAML here and it takes effect within `interval` — no UI editing
+# needed, and the dashboards stay versioned in this repo.
+provisioning:
+  interval: 60s
+  folders:
+    - /etc/perses/provisioning

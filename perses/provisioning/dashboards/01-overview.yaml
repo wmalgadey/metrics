@@ -1,0 +1,137 @@
+kind: Dashboard
+metadata:
+  name: sprint-overview
+  project: azdo-metrics
+spec:
+  display:
+    name: "Sprint Overview"
+  duration: 90d
+  variables:
+    - kind: ListVariable
+      spec:
+        name: sprint
+        display:
+          name: Sprint
+          description: Dedicated sprint selection — only synced sprints appear here.
+        allowMultiple: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            datasource: victoriametrics
+            labelName: sprint
+            matchers:
+              - azdo_sprint_scope_items{}
+    - kind: ListVariable
+      spec:
+        name: work_item_type
+        display:
+          name: Work Item Type
+        allowMultiple: true
+        allowAllValue: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            datasource: victoriametrics
+            labelName: work_item_type
+            matchers:
+              - azdo_sprint_scope_items{}
+  panels:
+    planned_items:
+      kind: Panel
+      spec:
+        display:
+          name: "Planned Items"
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: decimal }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  query: >-
+                    sum(azdo_sprint_planned_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+    completed_items:
+      kind: Panel
+      spec:
+        display:
+          name: "Completed Items"
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: decimal }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  query: >-
+                    sum(azdo_sprint_completed_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+    capacity_hours:
+      kind: Panel
+      spec:
+        display:
+          name: "Capacity (hours)"
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: decimal, suffix: h }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  query: 'sum(azdo_sprint_capacity_hours{sprint=~"$sprint"})'
+    avg_cycle_time:
+      kind: Panel
+      spec:
+        display:
+          name: "Median Cycle Time (days)"
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: decimal, suffix: d }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  datasource: victoriametrics
+                  query: >-
+                    avg(azdo_cycle_time_days{work_item_type=~"$work_item_type", quantile="0.5"})
+  layouts:
+    - kind: Grid
+      spec:
+        items:
+          - x: 0
+            y: 0
+            width: 6
+            height: 4
+            content: { $ref: "#/spec/panels/planned_items" }
+          - x: 6
+            y: 0
+            width: 6
+            height: 4
+            content: { $ref: "#/spec/panels/completed_items" }
+          - x: 12
+            y: 0
+            width: 6
+            height: 4
+            content: { $ref: "#/spec/panels/capacity_hours" }
+          - x: 18
+            y: 0
+            width: 6
+            height: 4
+            content: { $ref: "#/spec/panels/avg_cycle_time" }
