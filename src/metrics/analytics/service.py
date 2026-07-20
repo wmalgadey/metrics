@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from .domain.burndown import ideal_line
 from .domain.calendar import working_days
-from .domain.model import BurndownPoint, CapacityPoint, CycleTimePercentiles, VelocityPoint
+from .domain.model import (
+    BurndownPoint,
+    CapacityPoint,
+    CycleTimePercentiles,
+    ScopeChangePoint,
+    VelocityPoint,
+)
 from .ports import SprintMetricsRepository
 
 
@@ -66,3 +72,9 @@ def cycle_time_percentiles(
     repo: SprintMetricsRepository, iteration_paths: list[str] | None = None
 ) -> list[CycleTimePercentiles]:
     return repo.cycle_time_percentiles(iteration_paths)
+
+
+def scope_change(
+    repo: SprintMetricsRepository, iteration_paths: list[str]
+) -> list[ScopeChangePoint]:
+    return repo.scope_change(iteration_paths)

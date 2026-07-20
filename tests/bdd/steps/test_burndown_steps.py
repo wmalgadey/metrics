@@ -201,3 +201,33 @@ def scope_on_day_is(bdd_context, day, n):
 @then(parsers.parse("the open items on {day} are {n:d}"))
 def open_items_on_day_is(bdd_context, day, n):
     assert bdd_context["points_by_day"][date.fromisoformat(day)].open_items == n
+
+
+@when("the scope change is computed")
+def compute_scope_change(conn, bdd_context):
+    _seed_daily_snapshots(
+        conn,
+        bdd_context["states"],
+        bdd_context["item_count"],
+        extra_item_from=bdd_context.get("extra_item_from"),
+        removed_item=bdd_context.get("removed_item"),
+        removed_on=bdd_context.get("removed_on"),
+    )
+    repo = DuckDbSprintMetricsRepository(conn)
+    points = analytics_service.scope_change(repo, [PATH])
+    bdd_context["scope_change"] = points[0]
+
+
+@then(parsers.parse("the planned items are {n:d}"))
+def planned_items_is(bdd_context, n):
+    assert bdd_context["scope_change"].planned_items == n
+
+
+@then(parsers.parse("the added items are {n:d}"))
+def added_items_is(bdd_context, n):
+    assert bdd_context["scope_change"].added_items == n
+
+
+@then(parsers.parse("the scope change rate is {value:f}"))
+def scope_change_rate_is(bdd_context, value):
+    assert bdd_context["scope_change"].scope_change_rate == pytest.approx(value)

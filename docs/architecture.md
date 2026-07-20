@@ -62,7 +62,7 @@ Each context follows the same hexagonal shape:
 | Context | Use case | Port(s) | Adapter(s) |
 |---|---|---|---|
 | `ingestion` | `sync_sprints()` — fetch from Azure DevOps, archive raw responses, upsert into DuckDB | `WorkTrackingSource`, `RawArchive`, `SyncStore` | `AzdoWorkTrackingSource` (REST + OData clients), `FileRawArchive`, `DuckDbSyncStore` |
-| `analytics` | `sprint_burndown()`/`sprint_velocity()`/`capacity_vs_velocity()`/`cycle_time_percentiles()` — compute metrics from stored data | `SprintMetricsRepository` | `DuckDbSprintMetricsRepository` (all the SQL lives here) |
+| `analytics` | `sprint_burndown()`/`sprint_velocity()`/`capacity_vs_velocity()`/`cycle_time_percentiles()`/`scope_change()` — compute metrics from stored data | `SprintMetricsRepository` | `DuckDbSprintMetricsRepository` (all the SQL lives here) |
 | `publishing` | `publish_metrics()` — render metrics and push them to a sink | `MetricsSink` | `VictoriaMetricsSink` |
 
 `publishing` depends on `analytics`'s domain dataclasses (a customer of that
@@ -94,7 +94,8 @@ Facts:
   `'gitlab'` so a future GitLab sync can log into the same table.
 
 See `src/metrics/shared/duckdb/schema.sql` for the full DDL and the metric
-views (`v_sprint_burndown`, `v_velocity`, `v_capacity`, `v_cycle_time`).
+views (`v_sprint_burndown`, `v_velocity`, `v_capacity`, `v_cycle_time`,
+`v_scope_change`).
 
 ## Measurement basis: item counts, not Effort
 

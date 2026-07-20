@@ -10,6 +10,7 @@ from .domain.model import (
     CapacityPoint,
     CycleTimePercentiles,
     IterationWindow,
+    ScopeChangePoint,
     VelocityPoint,
 )
 
@@ -28,3 +29,5 @@ class SprintMetricsRepository(Protocol):
     def cycle_time_percentiles(
         self, iteration_paths: list[str] | None = None
     ) -> list[CycleTimePercentiles]: ...
+
+    def scope_change(self, iteration_paths: list[str]) -> list[ScopeChangePoint]: ...

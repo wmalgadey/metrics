@@ -12,6 +12,7 @@ from ..domain.model import (
     CapacityPoint,
     CycleTimePercentiles,
     IterationWindow,
+    ScopeChangePoint,
     VelocityPoint,
 )
 
@@ -116,6 +117,52 @@ class DuckDbSprintMetricsRepository:
             )
             for r in rows
         ]
+
+    def scope_change(self, iteration_paths: list[str]) -> list[ScopeChangePoint]:
+        if not iteration_paths:
+            return []
+        placeholders = ",".join(["?"] * len(iteration_paths))
+        rows = self._conn.execute(
+            f"""
+            WITH bounds AS (
+                SELECT iteration_path, MAX(snapshot_date) AS last_day
+                FROM work_item_snapshots
+                GROUP BY 1
+            )
+            SELECT
+                sc.iteration_path, sc.work_item_type, sc.start_date, sc.end_date,
+                sc.planned_items, sc.added_items, lb.scope_items AS final_scope_items,
+                v.completed_items
+            FROM v_scope_change sc
+            JOIN bounds b ON b.iteration_path = sc.iteration_path
+            JOIN v_sprint_burndown lb
+                ON lb.iteration_path = sc.iteration_path
+                AND lb.snapshot_date = b.last_day
+                AND lb.work_item_type = sc.work_item_type
+            JOIN v_velocity v
+                ON v.iteration_path = sc.iteration_path
+                AND v.work_item_type = sc.work_item_type
+            WHERE sc.iteration_path IN ({placeholders})
+            ORDER BY sc.work_item_type, sc.start_date
+            """,
+            iteration_paths,
+        ).fetchall()
+        points = []
+        for r in rows:
+            planned_items, added_items, final_scope_items, completed_items = r[4], r[5], r[6], r[7]
+            total_items = planned_items + added_items
+            points.append(
+                ScopeChangePoint(
+                    iteration_path=r[0], work_item_type=r[1], start_date=r[2], end_date=r[3],
+                    planned_items=planned_items, added_items=added_items,
+                    final_scope_items=final_scope_items, completed_items=completed_items,
+                    scope_change_rate=(added_items / total_items) if total_items else None,
+                    completion_rate=(
+                        completed_items / final_scope_items if final_scope_items else None
+                    ),
+                )
+            )
+        return points
 
     def cycle_time_percentiles(
         self, iteration_paths: list[str] | None = None

@@ -55,6 +55,20 @@ class VelocityPoint:
 
 
 @dataclass
+class ScopeChangePoint:
+    iteration_path: str
+    work_item_type: str
+    start_date: object
+    end_date: object
+    planned_items: int
+    added_items: int
+    final_scope_items: int
+    completed_items: int
+    scope_change_rate: float | None
+    completion_rate: float | None
+
+
+@dataclass
 class CapacityPoint:
     iteration_path: str
     start_date: object

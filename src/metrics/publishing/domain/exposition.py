@@ -11,6 +11,7 @@ from ...analytics.domain.model import (
     BurndownPoint,
     CapacityPoint,
     CycleTimePercentiles,
+    ScopeChangePoint,
     VelocityPoint,
 )
 
@@ -98,6 +99,24 @@ def render_capacity(points: Iterable[CapacityPoint], project: str, team: str) ->
             lines.append(
                 _line("azdo_sprint_items_per_capacity_hour", labels, p.items_per_capacity_hour, ts)
             )
+    return lines
+
+
+def render_scope_change(
+    points: Iterable[ScopeChangePoint], project: str, team: str
+) -> list[str]:
+    lines = []
+    for p in points:
+        labels = {
+            "project": project, "team": team,
+            "sprint": _sprint_label(p.iteration_path), "work_item_type": p.work_item_type,
+        }
+        ts = _date_ts_ms(p.end_date)
+        lines.append(_line("azdo_sprint_added_mid_sprint_items", labels, p.added_items, ts))
+        if p.scope_change_rate is not None:
+            lines.append(_line("azdo_sprint_scope_change_rate", labels, p.scope_change_rate, ts))
+        if p.completion_rate is not None:
+            lines.append(_line("azdo_sprint_completion_rate", labels, p.completion_rate, ts))
     return lines
 
 

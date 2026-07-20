@@ -209,3 +209,40 @@ def test_cycle_time_percentiles(conn, repo):
     r = result[0]
     assert r.count == 5
     assert r.cycle_time_p50 == pytest.approx(3.0)
+
+
+def test_scope_change_rate_for_items_added_mid_sprint(conn, repo):
+    path = _seed_sprint(conn)
+    days = ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05"]
+    snapshots = []
+    # Items 1-3 planned on day one; item 1 finishes by the last day.
+    for day in days:
+        for wi in range(1, 4):
+            state, cat = ("Done", "Completed") if wi == 1 and day == days[-1] else (
+                "Committed", "InProgress"
+            )
+            snapshots.append(
+                {
+                    "WorkItemId": wi, "DateValue": f"{day}T00:00:00Z",
+                    "WorkItemType": "Task", "State": state, "StateCategory": cat,
+                }
+            )
+    # Item 4 is pulled onto the board from day 3 onward — added mid-sprint.
+    for day in days[2:]:
+        snapshots.append(
+            {
+                "WorkItemId": 4, "DateValue": f"{day}T00:00:00Z", "WorkItemType": "Task",
+                "State": "Committed", "StateCategory": "InProgress",
+            }
+        )
+    loaders.upsert_work_item_snapshots(conn, path, snapshots, STATES)
+
+    result = analytics_service.scope_change(repo, [path])
+    assert len(result) == 1
+    r = result[0]
+    assert r.planned_items == 3
+    assert r.added_items == 1
+    assert r.final_scope_items == 4
+    assert r.completed_items == 1
+    assert r.scope_change_rate == pytest.approx(0.25)
+    assert r.completion_rate == pytest.approx(0.25)

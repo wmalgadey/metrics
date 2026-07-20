@@ -13,3 +13,11 @@ Feature: Sprint scope change detection
     When the burndown is computed
     Then the scope on 2026-06-04 is 2 items
     And the open items on 2026-06-04 are 2
+
+  Scenario: An item added mid-sprint counts toward the scope change rate
+    Given a synced sprint whose day-one snapshot contains 3 product backlog items
+    And a fourth item appears in the daily snapshots from 2026-06-03 on
+    When the scope change is computed
+    Then the planned items are 3
+    And the added items are 1
+    And the scope change rate is 0.25

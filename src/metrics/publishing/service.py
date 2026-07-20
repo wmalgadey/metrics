@@ -8,7 +8,13 @@ from dataclasses import dataclass
 
 from ..analytics import service as analytics_service
 from ..analytics.ports import SprintMetricsRepository
-from .domain.exposition import render_burndown, render_capacity, render_cycle_time, render_velocity
+from .domain.exposition import (
+    render_burndown,
+    render_capacity,
+    render_cycle_time,
+    render_scope_change,
+    render_velocity,
+)
 from .ports import MetricsSink
 
 
@@ -39,6 +45,9 @@ def publish_metrics(
     )
     lines += render_cycle_time(
         analytics_service.cycle_time_percentiles(repo, iteration_paths), project, team
+    )
+    lines += render_scope_change(
+        analytics_service.scope_change(repo, iteration_paths), project, team
     )
 
     if sink is not None:

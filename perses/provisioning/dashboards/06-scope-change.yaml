@@ -1,0 +1,140 @@
+kind: Dashboard
+metadata:
+  name: scope-change
+  project: azdo-metrics
+spec:
+  display:
+    name: "Scope Change"
+  duration: 180d
+  variables:
+    - kind: ListVariable
+      spec:
+        name: sprint
+        display:
+          name: Sprint
+        allowMultiple: true
+        allowAllValue: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            labelName: sprint
+            matchers:
+              - azdo_sprint_scope_change_rate{}
+    - kind: ListVariable
+      spec:
+        name: work_item_type
+        display:
+          name: Work Item Type
+        allowMultiple: true
+        allowAllValue: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            labelName: work_item_type
+            matchers:
+              - azdo_sprint_scope_change_rate{}
+  panels:
+    note:
+      kind: Panel
+      spec:
+        display:
+          name: "Reading this dashboard"
+        plugin:
+          kind: Markdown
+          spec:
+            text: >-
+              "Added mid-sprint" counts items whose **first** appearance in a
+              sprint came after day one — i.e. work pulled onto the board
+              after planning, rather than committed upfront. Scope change
+              rate = added mid-sprint / final scope. Select `$sprint = *` to
+              compare the rate across every synced sprint at a glance.
+    scope_change_rate:
+      kind: Panel
+      spec:
+        display:
+          name: "Scope Change Rate per Sprint"
+          description: Share of final scope that was added after day one.
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+            format: { unit: percent-decimal }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}}"
+                  query: >-
+                    azdo_sprint_scope_change_rate{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+    planned_vs_added:
+      kind: Panel
+      spec:
+        display:
+          name: "Planned (Day 1) vs. Added Mid-Sprint"
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — planned"
+                  query: >-
+                    azdo_sprint_planned_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}} — added mid-sprint"
+                  query: >-
+                    azdo_sprint_added_mid_sprint_items{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+    completion_rate:
+      kind: Panel
+      spec:
+        display:
+          name: "Completion Rate per Sprint"
+          description: Completed items / final scope.
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+            format: { unit: percent-decimal }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} / {{work_item_type}}"
+                  query: >-
+                    azdo_sprint_completion_rate{sprint=~"$sprint", work_item_type=~"$work_item_type"}
+  layouts:
+    - kind: Grid
+      spec:
+        items:
+          - x: 0
+            y: 0
+            width: 24
+            height: 3
+            content: { $ref: "#/spec/panels/note" }
+          - x: 0
+            y: 3
+            width: 24
+            height: 9
+            content: { $ref: "#/spec/panels/scope_change_rate" }
+          - x: 0
+            y: 12
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/planned_vs_added" }
+          - x: 12
+            y: 12
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/completion_rate" }
