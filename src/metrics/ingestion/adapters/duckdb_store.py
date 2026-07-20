@@ -12,6 +12,11 @@ from ...config import StatesConfig
 from ..domain.model import IterationRecord
 from ..domain.states import classify_state
 
+# This team's Azure DevOps capacity is entered as a fraction of a full workday
+# (1.0 = fully available, 0.5 = half day) rather than literal hours, so it's
+# converted to hours at ingestion time — everything downstream expects hours.
+WORKDAY_HOURS = 6 # 80% a day is reasonable for a dev team.
+
 
 def _ts(value: str | None) -> datetime | None:
     if not value:
@@ -107,7 +112,7 @@ def upsert_capacities(
                     member_id,
                     member_name,
                     activity.get("name") or "",
-                    activity.get("capacityPerDay") or 0,
+                    (activity.get("capacityPerDay") or 0) * WORKDAY_HOURS,
                 )
             )
         for day_off in member.get("daysOff", []):

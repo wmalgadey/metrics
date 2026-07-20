@@ -166,7 +166,7 @@ def test_capacity_vs_velocity_normalizes_by_hours(conn, repo):
             "teamMembers": [
                 {
                     "teamMember": {"id": "u1", "displayName": "Alice"},
-                    "activities": [{"name": "Dev", "capacityPerDay": 8}],
+                    "activities": [{"name": "Dev", "capacityPerDay": 1}],
                     "daysOff": [],
                 }
             ]
@@ -186,10 +186,10 @@ def test_capacity_vs_velocity_normalizes_by_hours(conn, repo):
 
     points = analytics_service.capacity_vs_velocity(repo, [path])
     assert len(points) == 1
-    # 5 working days * 8h = 40h capacity; 1 completed item -> 1/40
-    assert points[0].capacity_hours == pytest.approx(40.0)
+    # 5 working days * 6h = 30h capacity; 1 completed item -> 1/30
+    assert points[0].capacity_hours == pytest.approx(30.0)
     assert points[0].completed_items == 1
-    assert points[0].items_per_capacity_hour == pytest.approx(1 / 40)
+    assert points[0].items_per_capacity_hour == pytest.approx(1 / 30)
 
 
 def test_cycle_time_percentiles(conn, repo):

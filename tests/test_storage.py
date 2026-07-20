@@ -156,7 +156,7 @@ def test_capacity_view_excludes_days_off_and_weekends(conn):
             "teamMembers": [
                 {
                     "teamMember": {"id": "u1", "displayName": "Alice"},
-                    "activities": [{"name": "Dev", "capacityPerDay": 8}],
+                    "activities": [{"name": "Dev", "capacityPerDay": 1}],
                     "daysOff": [{"start": "2026-06-03T00:00:00Z", "end": "2026-06-03T00:00:00Z"}],
                 }
             ]
@@ -165,5 +165,5 @@ def test_capacity_view_excludes_days_off_and_weekends(conn):
     capacity = conn.execute(
         "SELECT capacity_hours FROM v_capacity WHERE iteration_path = 'Proj\\Sprint 2'"
     ).fetchone()[0]
-    # Mon-Fri = 5 weekdays, minus 1 day off (Wed) = 4 days * 8h = 32h
-    assert capacity == 32
+    # Mon-Fri = 5 weekdays, minus 1 day off (Wed) = 4 days * (1.0 * 6h) = 24h
+    assert capacity == 24
