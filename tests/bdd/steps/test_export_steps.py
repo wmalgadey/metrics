@@ -8,8 +8,8 @@ import httpx
 import respx
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from metrics.export.vm import run_export
 from metrics.ingestion.adapters import duckdb_store as loaders
+from metrics.publishing.service import run_export
 
 scenarios("idempotent_export.feature")
 

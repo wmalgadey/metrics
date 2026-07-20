@@ -19,9 +19,9 @@ from .config import (
     Settings,
     SprintsConfig,
 )
-from .export.vm import ExportSummary, run_export
 from .ingestion.adapters.azdo.http import AzdoHttpError, make_client
 from .ingestion.adapters.azdo.rest import RestClient
+from .publishing.service import ExportSummary, run_export
 from .shared.duckdb.db import connect
 
 app = typer.Typer(

@@ -9,8 +9,8 @@ from metrics.analytics.domain.model import (
     CycleTimePercentiles,
     VelocityPoint,
 )
-from metrics.export.vm import (
-    push_to_victoriametrics,
+from metrics.publishing.adapters.victoriametrics import push_to_victoriametrics
+from metrics.publishing.domain.exposition import (
     render_burndown,
     render_capacity,
     render_cycle_time,
