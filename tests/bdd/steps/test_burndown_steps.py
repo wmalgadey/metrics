@@ -1,9 +1,9 @@
 """Steps for burndown_ideal_line.feature and scope_change.feature.
 
-Bound directly against today's implementation in metrics.analytics.burndown
-(private _working_days/_ideal_line included) — this pins the SQL-based
-working-day/day-off semantics before Step 4 replaces it with a pure Python
-calendar port. Re-point these imports when that lands.
+Now bound against the hexagonalized analytics context: the pure
+domain.calendar.working_days/domain.burndown.ideal_line functions for the
+ideal-line scenarios, and analytics.service.sprint_burndown (via the DuckDB
+repository adapter) for the scope-change scenarios.
 """
 
 from __future__ import annotations
@@ -13,7 +13,10 @@ from datetime import date, timedelta
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from metrics.analytics.burndown import _ideal_line, _working_days, sprint_burndown
+from metrics.analytics import service as analytics_service
+from metrics.analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
+from metrics.analytics.domain.burndown import ideal_line
+from metrics.analytics.domain.calendar import working_days
 from metrics.storage import loaders
 
 scenarios("burndown_ideal_line.feature")
@@ -100,8 +103,9 @@ def team_day_off(conn, day):
 @when("the ideal burndown line is computed")
 def compute_ideal_line(conn, bdd_context):
     start, end = bdd_context["start"], bdd_context["end"]
-    working_days = _working_days(conn, ITERATION_ID, start, end)
-    bdd_context["ideal"] = _ideal_line(start, end, working_days, bdd_context["day1_scope"])
+    days_off = DuckDbSprintMetricsRepository(conn).team_days_off(ITERATION_ID)
+    wdays = working_days(start, end, days_off)
+    bdd_context["ideal"] = ideal_line(start, end, wdays, bdd_context["day1_scope"])
 
 
 @then(parsers.parse("the ideal value on {day} is {value:f}"))
@@ -184,7 +188,8 @@ def compute_burndown(conn, bdd_context):
         removed_item=bdd_context.get("removed_item"),
         removed_on=bdd_context.get("removed_on"),
     )
-    points = sprint_burndown(conn, PATH)
+    repo = DuckDbSprintMetricsRepository(conn)
+    points = analytics_service.sprint_burndown(repo, PATH)
     bdd_context["points_by_day"] = {p.day: p for p in points}
 
 

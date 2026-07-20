@@ -3,10 +3,12 @@ from datetime import date
 import httpx
 import respx
 
-from metrics.analytics.burndown import BurndownPoint
-from metrics.analytics.capacity import CapacityPoint
-from metrics.analytics.cycletime import CycleTimePercentiles
-from metrics.analytics.velocity import VelocityPoint
+from metrics.analytics.domain.model import (
+    BurndownPoint,
+    CapacityPoint,
+    CycleTimePercentiles,
+    VelocityPoint,
+)
 from metrics.export.vm import (
     push_to_victoriametrics,
     render_burndown,

@@ -7,8 +7,8 @@ from datetime import date, timedelta
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from metrics.analytics.cycletime import cycle_time_percentiles
-from metrics.analytics.velocity import sprint_velocity
+from metrics.analytics import service as analytics_service
+from metrics.analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
 from metrics.config import StatesConfig
 from metrics.storage import loaders
 
@@ -92,8 +92,9 @@ def rolling_window(bdd_context, n):
 
 @when("the velocity is computed")
 def compute_velocity(conn, bdd_context):
-    bdd_context["velocity_points"] = sprint_velocity(
-        conn, bdd_context["paths"], bdd_context["window"]
+    repo = DuckDbSprintMetricsRepository(conn)
+    bdd_context["velocity_points"] = analytics_service.sprint_velocity(
+        repo, bdd_context["paths"], bdd_context["window"]
     )
 
 
@@ -153,7 +154,8 @@ def item_in_progress(conn, n):
 
 @when("cycle time percentiles are computed")
 def compute_cycle_time(conn, bdd_context):
-    bdd_context["cycle_time_result"] = cycle_time_percentiles(conn)
+    repo = DuckDbSprintMetricsRepository(conn)
+    bdd_context["cycle_time_result"] = analytics_service.cycle_time_percentiles(repo)
 
 
 @then(parsers.parse("the 50th percentile cycle time is {value:f} days"))

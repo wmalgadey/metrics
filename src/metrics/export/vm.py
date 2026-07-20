@@ -11,10 +11,14 @@ from datetime import UTC, date, datetime
 import duckdb
 import httpx
 
-from ..analytics.burndown import BurndownPoint, sprint_burndown
-from ..analytics.capacity import CapacityPoint, capacity_vs_velocity
-from ..analytics.cycletime import CycleTimePercentiles, cycle_time_percentiles
-from ..analytics.velocity import VelocityPoint, sprint_velocity
+from ..analytics import service as analytics_service
+from ..analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
+from ..analytics.domain.model import (
+    BurndownPoint,
+    CapacityPoint,
+    CycleTimePercentiles,
+    VelocityPoint,
+)
 
 
 def _escape_label(value: str) -> str:
@@ -140,16 +144,20 @@ def run_export(
     vm_url: str,
     push: bool = True,
 ) -> ExportSummary:
+    repo = DuckDbSprintMetricsRepository(conn)
+
     lines: list[str] = []
     for path in iteration_paths:
-        lines += render_burndown(sprint_burndown(conn, path), project, team)
+        lines += render_burndown(analytics_service.sprint_burndown(repo, path), project, team)
 
     lines += render_velocity(
-        sprint_velocity(conn, iteration_paths, rolling_window), project, team
+        analytics_service.sprint_velocity(repo, iteration_paths, rolling_window), project, team
     )
-    lines += render_capacity(capacity_vs_velocity(conn, iteration_paths), project, team)
+    lines += render_capacity(
+        analytics_service.capacity_vs_velocity(repo, iteration_paths), project, team
+    )
     lines += render_cycle_time(
-        cycle_time_percentiles(conn, iteration_paths), project, team
+        analytics_service.cycle_time_percentiles(repo, iteration_paths), project, team
     )
 
     if push:
