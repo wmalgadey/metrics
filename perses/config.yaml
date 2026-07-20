@@ -4,6 +4,31 @@
 security:
   enable_auth: false
 
+# File-backed storage, matching the image's own default config
+# (docs/examples/config.docker.yaml). Without an explicit "extension", Perses
+# falls back to YAML-formatted resource files — but the list endpoints
+# (GET .../dashboards, GET /api/v1/projects) read those files as raw JSON
+# without converting them first, so a stored "kind: Dashboard" YAML line
+# breaks json.Marshal with "invalid character 'k' looking for beginning of
+# value". Single-resource GETs don't hit this path (they unmarshal via the
+# typed model), which is why only listing was broken.
+database:
+  file:
+    folder: "/perses"
+    extension: "json"
+
+# CUE schema paths as baked into the persesdev/perses image (see its
+# Dockerfile: COPY cue/schemas/ /etc/perses/cue/schemas/). Required here
+# because supplying a custom config.yaml replaces the image's own default
+# config, which is the only place these paths are otherwise set — without
+# it Perses falls back to relative "schemas/panels" (etc.) under its
+# WORKDIR and fails to start.
+schemas:
+  panels_path: "/etc/perses/cue/schemas/panels"
+  queries_path: "/etc/perses/cue/schemas/queries"
+  datasources_path: "/etc/perses/cue/schemas/datasources"
+  variables_path: "/etc/perses/cue/schemas/variables"
+
 # GitOps-style provisioning: Perses periodically (re-)reads these files and
 # upserts the resources (Project, Datasource, Dashboards) into its database.
 # Edit the YAML here and it takes effect within `interval` — no UI editing
