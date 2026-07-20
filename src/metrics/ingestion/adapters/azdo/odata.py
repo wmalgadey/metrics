@@ -29,7 +29,6 @@ WORK_ITEM_FIELDS = [
     "CompletedDate",
     "ChangedDate",
     "Effort",
-    "StoryPoints",
     "RemainingWork",
     "CycleTimeDays",
     "LeadTimeDays",

@@ -18,8 +18,13 @@ class AzdoHttpError(RuntimeError):
         self.status_code = response.status_code
         detail = ""
         try:
-            detail = response.json().get("message", "")
+            body = response.json()
+            # Azure DevOps OData errors nest the message under "error";
+            # other endpoints put it at the top level.
+            detail = body.get("error", {}).get("message") or body.get("message", "")
         except Exception:
+            pass
+        if not detail:
             detail = response.text[:300]
         hint = ""
         if response.status_code in (401, 403):

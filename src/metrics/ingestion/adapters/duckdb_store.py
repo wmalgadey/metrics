@@ -169,8 +169,11 @@ def upsert_work_items(
     rows = []
     for wi in items:
         effort = wi.get("Effort")
-        state = wi.get("State", "")
-        state_category = wi.get("StateCategory", "")
+        # Analytics returns StateCategory: null for some states (e.g. "Removed"
+        # on certain process templates) — the key is present, so .get(..., "")
+        # would still yield None and violate the NOT NULL column.
+        state = wi.get("State") or ""
+        state_category = wi.get("StateCategory") or ""
         rows.append(
             (
                 wi["WorkItemId"],
@@ -228,8 +231,8 @@ def upsert_work_item_snapshots(
 ) -> int:
     rows = []
     for snap in snapshots:
-        state = snap.get("State", "")
-        state_category = snap.get("StateCategory", "")
+        state = snap.get("State") or ""
+        state_category = snap.get("StateCategory") or ""
         rows.append(
             (
                 snap["WorkItemId"],
