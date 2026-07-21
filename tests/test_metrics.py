@@ -207,6 +207,8 @@ def test_cycle_time_percentiles(conn, repo):
     result = analytics_service.cycle_time_percentiles(repo, [path])
     assert len(result) == 1
     r = result[0]
+    assert r.iteration_path == path
+    assert r.end_date == date(2026, 6, 5)
     assert r.count == 5
     assert r.cycle_time_p50 == pytest.approx(3.0)
 

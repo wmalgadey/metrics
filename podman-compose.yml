@@ -12,6 +12,9 @@ services:
     command:
       - "--storageDataPath=/victoria-metrics-data"
       - "--httpListenAddr=:8428"
+      # Sprint samples are timestamped at historical sprint end dates; the
+      # 1-month default retention would silently drop anything older.
+      - "--retentionPeriod=2y"
     restart: unless-stopped
 
   perses:

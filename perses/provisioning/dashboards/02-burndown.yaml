@@ -5,7 +5,7 @@ metadata:
 spec:
   display:
     name: "Burndown"
-  duration: 30d
+  duration: 1y
   variables:
     - kind: ListVariable
       spec:
@@ -34,18 +34,21 @@ spec:
             matchers:
               - azdo_sprint_scope_items{}
   panels:
-    burndown_open:
+    burndown_ideal_scope:
       kind: Panel
       spec:
         display:
-          name: "Open Items — Actual"
+          name: "Burndown — Actual vs. Ideal vs. Scope"
+          description: >-
+            Ideal is a linear line from day-1 scope to zero on the sprint's last
+            working day, flat over weekends/team days off. Scope rising mid-sprint
+            indicates items were added. Zoom into the selected sprint's weeks for
+            detail — the dashboard window spans a full year.
         plugin:
           kind: TimeSeriesChart
           spec:
             legend:
               position: bottom
-            visual:
-              areaOpacity: 0.3
         queries:
           - kind: TimeSeriesQuery
             spec:
@@ -55,21 +58,6 @@ spec:
                   seriesNameFormat: "{{sprint}} — open"
                   query: >-
                     sum by (sprint) (azdo_sprint_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
-    burndown_ideal_scope:
-      kind: Panel
-      spec:
-        display:
-          name: "Ideal vs. Scope"
-          description: >-
-            Ideal is a linear line from day-1 scope to zero on the sprint's last
-            working day, flat over weekends/team days off. Scope rising mid-sprint
-            indicates items were added.
-        plugin:
-          kind: TimeSeriesChart
-          spec:
-            legend:
-              position: bottom
-        queries:
           - kind: TimeSeriesQuery
             spec:
               plugin:
@@ -113,15 +101,10 @@ spec:
           - x: 0
             y: 0
             width: 24
-            height: 8
-            content: { $ref: "#/spec/panels/burndown_open" }
-          - x: 0
-            y: 8
-            width: 24
-            height: 8
+            height: 10
             content: { $ref: "#/spec/panels/burndown_ideal_scope" }
           - x: 0
-            y: 16
+            y: 10
             width: 24
             height: 8
             content: { $ref: "#/spec/panels/burndown_effort" }

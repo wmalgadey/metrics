@@ -80,6 +80,8 @@ class CapacityPoint:
 
 @dataclass
 class CycleTimePercentiles:
+    iteration_path: str
+    end_date: date | None
     work_item_type: str
     count: int
     cycle_time_p50: float | None
