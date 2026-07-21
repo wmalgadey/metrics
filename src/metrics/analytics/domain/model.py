@@ -69,6 +69,29 @@ class ScopeChangePoint:
 
 
 @dataclass
+class BurndownSummaryPoint:
+    """Per-sprint roll-up backing the burndown dashboard's stat tiles —
+    average items burned down per elapsed working day."""
+
+    iteration_path: str
+    work_item_type: str
+    end_date: date | None
+    avg_burndown_items_per_day: float
+
+
+@dataclass
+class CapacityDayPoint:
+    """One sprint day's team capacity: hours available that day and hours
+    still available from that day (inclusive) to the sprint end — the
+    remaining-capacity line of the burndown chart."""
+
+    iteration_path: str
+    day: date
+    capacity_hours: float
+    remaining_capacity_hours: float
+
+
+@dataclass
 class CapacityPoint:
     iteration_path: str
     start_date: object

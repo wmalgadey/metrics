@@ -192,6 +192,89 @@ def test_capacity_vs_velocity_normalizes_by_hours(conn, repo):
     assert points[0].items_per_capacity_hour == pytest.approx(1 / 30)
 
 
+def test_capacity_daily_remaining_line_decreases_by_daily_hours(conn, repo):
+    path = _seed_sprint(conn)  # Mon 2026-06-01 .. Fri 2026-06-05
+    loaders.upsert_capacities(
+        conn, "it-1", "Proj/Team",
+        {
+            "teamMembers": [
+                {
+                    "teamMember": {"id": "u1", "displayName": "Alice"},
+                    "activities": [{"name": "Dev", "capacityPerDay": 1}],
+                    "daysOff": [],
+                }
+            ]
+        },
+    )
+
+    points = analytics_service.sprint_capacity_daily(repo, path)
+    by_day = {p.day: p for p in points}
+
+    assert len(points) == 5
+    # 6h/day; remaining on a day includes that day through the sprint end
+    assert by_day[date(2026, 6, 1)].capacity_hours == pytest.approx(6.0)
+    assert by_day[date(2026, 6, 1)].remaining_capacity_hours == pytest.approx(30.0)
+    assert by_day[date(2026, 6, 3)].remaining_capacity_hours == pytest.approx(18.0)
+    assert by_day[date(2026, 6, 5)].remaining_capacity_hours == pytest.approx(6.0)
+
+
+def test_capacity_daily_flat_over_weekend_and_days_off(conn, repo):
+    # Fri 2026-06-05 .. Tue 2026-06-09: working days Fri, Mon, Tue; Monday is a
+    # member day off, so it contributes 0 hours.
+    path = _seed_sprint(conn, path="Proj\\Sprint W", start="2026-06-05", end="2026-06-09")
+    loaders.upsert_capacities(
+        conn, "it-1", "Proj/Team",
+        {
+            "teamMembers": [
+                {
+                    "teamMember": {"id": "u1", "displayName": "Alice"},
+                    "activities": [{"name": "Dev", "capacityPerDay": 1}],
+                    "daysOff": [
+                        {"start": "2026-06-08T00:00:00Z", "end": "2026-06-08T00:00:00Z"}
+                    ],
+                }
+            ]
+        },
+    )
+
+    points = analytics_service.sprint_capacity_daily(repo, path)
+    by_day = {p.day: p for p in points}
+
+    assert len(points) == 5  # every calendar day of the sprint has a row
+    assert by_day[date(2026, 6, 6)].capacity_hours == pytest.approx(0.0)  # Saturday
+    assert by_day[date(2026, 6, 8)].capacity_hours == pytest.approx(0.0)  # day off
+    # remaining: Fri 12h (Fri + Tue), flat 6h over Sat/Sun/Mon, Tue 6h
+    assert by_day[date(2026, 6, 5)].remaining_capacity_hours == pytest.approx(12.0)
+    assert by_day[date(2026, 6, 6)].remaining_capacity_hours == pytest.approx(6.0)
+    assert by_day[date(2026, 6, 8)].remaining_capacity_hours == pytest.approx(6.0)
+    assert by_day[date(2026, 6, 9)].remaining_capacity_hours == pytest.approx(6.0)
+
+
+def test_burndown_summary_average_items_per_working_day(conn, repo):
+    path = _seed_sprint(conn)  # 5 working days
+    days = ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05"]
+    snapshots = []
+    # 4 tasks; items 1 and 2 are done from day 4 onward -> 2 done / 5 working days
+    for day in days:
+        for wi in range(1, 5):
+            done = wi <= 2 and day >= days[3]
+            state, cat = ("Done", "Completed") if done else ("Committed", "InProgress")
+            snapshots.append(
+                {
+                    "WorkItemId": wi, "DateValue": f"{day}T00:00:00Z",
+                    "WorkItemType": "Task", "State": state, "StateCategory": cat,
+                }
+            )
+    loaders.upsert_work_item_snapshots(conn, path, snapshots, STATES)
+
+    points = analytics_service.sprint_burndown_summary(repo, path)
+    assert len(points) == 1
+    p = points[0]
+    assert p.work_item_type == "Task"
+    assert p.end_date == date(2026, 6, 5)
+    assert p.avg_burndown_items_per_day == pytest.approx(2 / 5)
+
+
 def test_cycle_time_percentiles(conn, repo):
     path = _seed_sprint(conn)
     items = [

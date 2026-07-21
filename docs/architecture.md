@@ -62,7 +62,7 @@ Each context follows the same hexagonal shape:
 | Context | Use case | Port(s) | Adapter(s) |
 |---|---|---|---|
 | `ingestion` | `sync_sprints()` — fetch from Azure DevOps, archive raw responses, upsert into DuckDB | `WorkTrackingSource`, `RawArchive`, `SyncStore` | `AzdoWorkTrackingSource` (REST + OData clients), `FileRawArchive`, `DuckDbSyncStore` |
-| `analytics` | `sprint_burndown()`/`sprint_velocity()`/`capacity_vs_velocity()`/`cycle_time_percentiles()`/`scope_change()` — compute metrics from stored data | `SprintMetricsRepository` | `DuckDbSprintMetricsRepository` (all the SQL lives here) |
+| `analytics` | `sprint_burndown()`/`sprint_burndown_summary()`/`sprint_capacity_daily()`/`sprint_velocity()`/`capacity_vs_velocity()`/`cycle_time_percentiles()`/`scope_change()` — compute metrics from stored data | `SprintMetricsRepository` | `DuckDbSprintMetricsRepository` (all the SQL lives here) |
 | `publishing` | `publish_metrics()` — render metrics and push them to a sink | `MetricsSink` | `VictoriaMetricsSink` |
 
 `publishing` depends on `analytics`'s domain dataclasses (a customer of that

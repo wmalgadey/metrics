@@ -12,7 +12,10 @@ spec:
         name: sprint
         display:
           name: Sprint
-          description: Dedicated sprint selection — pick one or more sprints to overlay.
+          description: >-
+            Dedicated sprint selection — pick one sprint for the Azure-DevOps-style
+            view (the stat tiles sum over the selection), or several to see their
+            curves side by side on the time axis.
         allowMultiple: true
         plugin:
           kind: PrometheusLabelValuesVariable
@@ -34,16 +37,116 @@ spec:
             matchers:
               - azdo_sprint_scope_items{}
   panels:
+    stat_remaining:
+      kind: Panel
+      spec:
+        display:
+          name: "Items Remaining"
+          description: Open items on the latest synced day of the selected sprint(s).
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: decimal }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: >-
+                    sum(azdo_sprint_open_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+    stat_completed_pct:
+      kind: Panel
+      spec:
+        display:
+          name: "Completed"
+          description: Done items as a share of current total scope.
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: percent-decimal }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: >-
+                    sum(azdo_sprint_done_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+                    /
+                    sum(azdo_sprint_scope_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+    stat_scope_increase:
+      kind: Panel
+      spec:
+        display:
+          name: "Total Scope Increase"
+          description: Items added after day 1 (mid-sprint additions).
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: decimal }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: >-
+                    sum(azdo_sprint_added_mid_sprint_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+    stat_avg_burndown:
+      kind: Panel
+      spec:
+        display:
+          name: "Average Burndown (items/working day)"
+          description: Items completed so far divided by elapsed working days.
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: decimal, decimalPlaces: 1 }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: >-
+                    sum(azdo_sprint_avg_burndown_items_per_day{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+    stat_planned_capacity:
+      kind: Panel
+      spec:
+        display:
+          name: "Planned Capacity (hours)"
+          description: >-
+            Net team capacity for the whole sprint (per-day hours × working days,
+            minus member and team days off) — the conditions under which this
+            burndown was achieved.
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format: { unit: hours }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: 'sum(azdo_sprint_capacity_hours{sprint=~"$sprint"})'
     burndown_ideal_scope:
       kind: Panel
       spec:
         display:
-          name: "Burndown — Actual vs. Ideal vs. Scope"
+          name: "Burndown — Remaining vs. Ideal vs. Scope vs. Capacity"
           description: >-
             Ideal is a linear line from day-1 scope to zero on the sprint's last
             working day, flat over weekends/team days off. Scope rising mid-sprint
-            indicates items were added. Zoom into the selected sprint's weeks for
-            detail — the dashboard window spans a full year.
+            indicates items were added. Remaining capacity (hours) is plotted on
+            the same axis, like Azure DevOps does. Zoom into the selected sprint's
+            weeks for detail — the dashboard window spans a full year.
         plugin:
           kind: TimeSeriesChart
           spec:
@@ -74,6 +177,14 @@ spec:
                   seriesNameFormat: "{{sprint}} — scope"
                   query: >-
                     sum by (sprint) (azdo_sprint_scope_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} — remaining capacity (h)"
+                  query: >-
+                    sum by (sprint) (azdo_sprint_remaining_capacity_hours{sprint=~"$sprint"})
     burndown_effort:
       kind: Panel
       spec:
@@ -100,11 +211,36 @@ spec:
         items:
           - x: 0
             y: 0
+            width: 4
+            height: 4
+            content: { $ref: "#/spec/panels/stat_remaining" }
+          - x: 4
+            y: 0
+            width: 4
+            height: 4
+            content: { $ref: "#/spec/panels/stat_completed_pct" }
+          - x: 8
+            y: 0
+            width: 5
+            height: 4
+            content: { $ref: "#/spec/panels/stat_scope_increase" }
+          - x: 13
+            y: 0
+            width: 6
+            height: 4
+            content: { $ref: "#/spec/panels/stat_avg_burndown" }
+          - x: 19
+            y: 0
+            width: 5
+            height: 4
+            content: { $ref: "#/spec/panels/stat_planned_capacity" }
+          - x: 0
+            y: 4
             width: 24
             height: 10
             content: { $ref: "#/spec/panels/burndown_ideal_scope" }
           - x: 0
-            y: 10
+            y: 14
             width: 24
             height: 8
             content: { $ref: "#/spec/panels/burndown_effort" }

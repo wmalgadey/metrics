@@ -5,6 +5,8 @@ import respx
 
 from metrics.analytics.domain.model import (
     BurndownPoint,
+    BurndownSummaryPoint,
+    CapacityDayPoint,
     CapacityPoint,
     CycleTimePercentiles,
     ScopeChangePoint,
@@ -13,7 +15,9 @@ from metrics.analytics.domain.model import (
 from metrics.publishing.adapters.victoriametrics import push_to_victoriametrics
 from metrics.publishing.domain.exposition import (
     render_burndown,
+    render_burndown_summary,
     render_capacity,
+    render_capacity_daily,
     render_cycle_time,
     render_scope_change,
     render_velocity,
@@ -41,6 +45,43 @@ def test_render_burndown_includes_ideal_and_optional_effort():
     # the Task point has no effort values -> no effort lines for it
     task_lines = [line for line in lines if 'work_item_type="Task"' in line]
     assert not any("effort" in line for line in task_lines)
+
+
+def test_render_capacity_daily_emits_daily_and_remaining_hours():
+    points = [
+        CapacityDayPoint(
+            iteration_path="Proj\\Sprint 1", day=date(2026, 6, 1),
+            capacity_hours=6.0, remaining_capacity_hours=30.0,
+        ),
+        CapacityDayPoint(
+            iteration_path="Proj\\Sprint 1", day=date(2026, 6, 2),
+            capacity_hours=6.0, remaining_capacity_hours=24.0,
+        ),
+    ]
+    lines = render_capacity_daily(points, "Proj", "MyTeam")
+
+    assert len(lines) == 4
+    assert all('sprint="Proj/Sprint 1"' in line for line in lines)
+    day1_ts = str(int(datetime(2026, 6, 1, tzinfo=UTC).timestamp() * 1000))
+    assert any(
+        line.startswith("azdo_sprint_remaining_capacity_hours{")
+        and line.endswith(f"30.0 {day1_ts}")
+        for line in lines
+    )
+    assert any(line.startswith("azdo_sprint_capacity_day_hours{") for line in lines)
+
+
+def test_render_burndown_summary_avg_items_per_day():
+    points = [
+        BurndownSummaryPoint(
+            iteration_path="Proj\\Sprint 1", work_item_type="Task",
+            end_date=date(2026, 6, 5), avg_burndown_items_per_day=0.4,
+        )
+    ]
+    lines = render_burndown_summary(points, "Proj", "MyTeam")
+    assert len(lines) == 1
+    assert lines[0].startswith("azdo_sprint_avg_burndown_items_per_day{")
+    assert 'work_item_type="Task"' in lines[0]
 
 
 def test_render_velocity_and_capacity_and_cycletime():

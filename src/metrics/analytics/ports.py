@@ -7,6 +7,7 @@ from typing import Protocol
 from .domain.calendar import DateRange
 from .domain.model import (
     BurndownRow,
+    CapacityDayPoint,
     CapacityPoint,
     CycleTimePercentiles,
     IterationWindow,
@@ -21,6 +22,8 @@ class SprintMetricsRepository(Protocol):
     def burndown_rows(self, iteration_path: str) -> list[BurndownRow]: ...
 
     def team_days_off(self, iteration_id: str) -> list[DateRange]: ...
+
+    def capacity_daily(self, iteration_path: str) -> list[CapacityDayPoint]: ...
 
     def velocity(self, iteration_paths: list[str], rolling_window: int) -> list[VelocityPoint]: ...
 

@@ -219,6 +219,53 @@ SELECT iteration_path, team_id, SUM(capacity_per_day_hours) AS capacity_hours
 FROM member_available_days
 GROUP BY 1, 2;
 
+-- Daily team capacity per sprint day, plus the remaining-capacity line:
+-- hours still available from that day (inclusive) to the sprint end. Weekend
+-- and days-off rows are kept with 0 daily hours so the remaining line is
+-- defined (and flat) on every calendar day of the sprint, mirroring how the
+-- burndown's ideal line handles non-working days.
+CREATE OR REPLACE VIEW v_capacity_daily AS
+WITH iteration_days AS (
+    SELECT i.iteration_id, i.path AS iteration_path, i.team_id, d.day::DATE AS day
+    FROM iterations i,
+         LATERAL generate_series(i.start_date, i.end_date, INTERVAL 1 DAY) AS d(day)
+    WHERE i.start_date IS NOT NULL AND i.end_date IS NOT NULL
+),
+member_day_hours AS (
+    SELECT itd.iteration_path, itd.day, c.capacity_per_day_hours
+    FROM iteration_days itd
+    JOIN capacities c ON c.iteration_id = itd.iteration_id
+    WHERE isodow(itd.day) NOT IN (6, 7)
+      AND NOT EXISTS (
+          SELECT 1 FROM member_days_off m
+          WHERE m.iteration_id = itd.iteration_id
+            AND m.team_member_id = c.team_member_id
+            AND itd.day BETWEEN m.start_date AND m.end_date
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM team_days_off t
+          WHERE t.iteration_id = itd.iteration_id
+            AND itd.day BETWEEN t.start_date AND t.end_date
+      )
+),
+daily AS (
+    SELECT itd.iteration_path, itd.team_id, itd.day,
+           COALESCE(SUM(m.capacity_per_day_hours), 0) AS capacity_hours
+    FROM iteration_days itd
+    LEFT JOIN member_day_hours m
+        ON m.iteration_path = itd.iteration_path AND m.day = itd.day
+    GROUP BY 1, 2, 3
+)
+SELECT
+    iteration_path,
+    team_id,
+    day,
+    capacity_hours,
+    SUM(capacity_hours) OVER (
+        PARTITION BY iteration_path ORDER BY day DESC
+    ) AS remaining_capacity_hours
+FROM daily;
+
 -- Completed work items with cycle/lead time, for percentile aggregation per type.
 CREATE OR REPLACE VIEW v_cycle_time AS
 SELECT

@@ -10,7 +10,9 @@ from ..analytics import service as analytics_service
 from ..analytics.ports import SprintMetricsRepository
 from .domain.exposition import (
     render_burndown,
+    render_burndown_summary,
     render_capacity,
+    render_capacity_daily,
     render_cycle_time,
     render_scope_change,
     render_velocity,
@@ -36,6 +38,12 @@ def publish_metrics(
     lines: list[str] = []
     for path in iteration_paths:
         lines += render_burndown(analytics_service.sprint_burndown(repo, path), project, team)
+        lines += render_burndown_summary(
+            analytics_service.sprint_burndown_summary(repo, path), project, team
+        )
+        lines += render_capacity_daily(
+            analytics_service.sprint_capacity_daily(repo, path), project, team
+        )
 
     lines += render_velocity(
         analytics_service.sprint_velocity(repo, iteration_paths, rolling_window), project, team

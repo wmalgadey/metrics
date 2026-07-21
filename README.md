@@ -7,13 +7,20 @@ Tracks **one team's dedicated set of sprints** (past and current) so you can
 see, per sprint:
 
 - **Burndown** — open items per day (per work item type), against a
-  calendar-aware ideal line and a scope line that exposes mid-sprint
-  additions.
+  calendar-aware ideal line, a scope line that exposes mid-sprint
+  additions, and a remaining-capacity line (hours still available until
+  sprint end, days off excluded) — plus Azure-DevOps-style stat tiles
+  (items remaining, % completed, scope increase, average burndown,
+  planned capacity).
 - **Velocity** — planned vs. completed items per sprint, with a rolling
   average.
 - **Capacity vs. velocity** — a normalized trend (items per capacity-hour),
   not an absolute ratio (capacity is hours, velocity is item counts).
 - **Cycle/lead time** — P50/P85/P95 per work item type.
+- **Sprint comparison** — one bar per sprint for planned capacity,
+  planned vs. completed items, completion rate, scope increase and
+  average burndown, so you can see under which conditions (how much
+  planned capacity) each sprint's burndown was achieved.
 
 Item **counts** per work item type are the primary measure, not Effort — see
 [docs/architecture.md](docs/architecture.md#measurement-basis-item-counts-not-effort)

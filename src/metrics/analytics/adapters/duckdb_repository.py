@@ -9,6 +9,7 @@ import duckdb
 from ..domain.calendar import DateRange
 from ..domain.model import (
     BurndownRow,
+    CapacityDayPoint,
     CapacityPoint,
     CycleTimePercentiles,
     IterationWindow,
@@ -55,6 +56,24 @@ class DuckDbSprintMetricsRepository:
             [iteration_id],
         ).fetchall()
         return [DateRange(start=r[0], end=r[1]) for r in rows]
+
+    def capacity_daily(self, iteration_path: str) -> list[CapacityDayPoint]:
+        rows = self._conn.execute(
+            """
+            SELECT day, capacity_hours, remaining_capacity_hours
+            FROM v_capacity_daily
+            WHERE iteration_path = ?
+            ORDER BY day
+            """,
+            [iteration_path],
+        ).fetchall()
+        return [
+            CapacityDayPoint(
+                iteration_path=iteration_path, day=r[0],
+                capacity_hours=r[1], remaining_capacity_hours=r[2],
+            )
+            for r in rows
+        ]
 
     def velocity(self, iteration_paths: list[str], rolling_window: int) -> list[VelocityPoint]:
         if not iteration_paths:
