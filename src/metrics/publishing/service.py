@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..analytics import service as analytics_service
+from ..analytics.domain.effort import EffortEstimationParams
 from ..analytics.ports import SprintMetricsRepository
 from .domain.exposition import (
     render_burndown,
@@ -14,6 +15,7 @@ from .domain.exposition import (
     render_capacity,
     render_capacity_daily,
     render_cycle_time,
+    render_effort_burndown,
     render_scope_change,
     render_velocity,
 )
@@ -34,7 +36,14 @@ def publish_metrics(
     team: str,
     iteration_paths: list[str],
     rolling_window: int,
+    effort_estimation: EffortEstimationParams | None = None,
 ) -> ExportSummary:
+    estimates = (
+        analytics_service.effort_estimates(repo, effort_estimation)
+        if effort_estimation is not None
+        else None
+    )
+
     lines: list[str] = []
     for path in iteration_paths:
         lines += render_burndown(analytics_service.sprint_burndown(repo, path), project, team)
@@ -44,6 +53,10 @@ def publish_metrics(
         lines += render_capacity_daily(
             analytics_service.sprint_capacity_daily(repo, path), project, team
         )
+        if estimates is not None:
+            lines += render_effort_burndown(
+                analytics_service.sprint_effort_burndown(repo, path, estimates), project, team
+            )
 
     lines += render_velocity(
         analytics_service.sprint_velocity(repo, iteration_paths, rolling_window), project, team

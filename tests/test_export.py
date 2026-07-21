@@ -9,6 +9,7 @@ from metrics.analytics.domain.model import (
     CapacityDayPoint,
     CapacityPoint,
     CycleTimePercentiles,
+    EffortBurndownPoint,
     ScopeChangePoint,
     VelocityPoint,
 )
@@ -19,6 +20,7 @@ from metrics.publishing.domain.exposition import (
     render_capacity,
     render_capacity_daily,
     render_cycle_time,
+    render_effort_burndown,
     render_scope_change,
     render_velocity,
 )
@@ -69,6 +71,32 @@ def test_render_capacity_daily_emits_daily_and_remaining_hours():
         for line in lines
     )
     assert any(line.startswith("azdo_sprint_capacity_day_hours{") for line in lines)
+
+
+def test_render_effort_burndown_uses_estimated_metric_names():
+    points = [
+        EffortBurndownPoint(
+            iteration_path="Proj\\Sprint 1", work_item_type="Product Backlog Item",
+            day=date(2026, 6, 1), remaining_effort=12.0, scope_effort=12.0,
+            completed_effort=0.0, estimated_items=1,
+        ),
+        EffortBurndownPoint(
+            iteration_path="Proj\\Sprint 1", work_item_type="Task",
+            day=date(2026, 6, 1), remaining_effort=None, scope_effort=None,
+            completed_effort=None, estimated_items=0,
+        ),
+    ]
+    lines = render_effort_burndown(points, "Proj", "MyTeam")
+
+    assert any(line.startswith("azdo_sprint_remaining_effort_estimated{") for line in lines)
+    assert any(line.startswith("azdo_sprint_scope_effort_estimated{") for line in lines)
+    assert any(line.startswith("azdo_sprint_effort_estimated_items{") for line in lines)
+    # never under the real-effort metric names
+    assert not any(line.startswith("azdo_sprint_remaining_effort{") for line in lines)
+    # the Task point has no effort sums -> only its estimated_items count line
+    task_lines = [line for line in lines if 'work_item_type="Task"' in line]
+    assert len(task_lines) == 1
+    assert task_lines[0].startswith("azdo_sprint_effort_estimated_items{")
 
 
 def test_render_burndown_summary_avg_items_per_day():

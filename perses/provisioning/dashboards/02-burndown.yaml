@@ -190,7 +190,13 @@ spec:
       spec:
         display:
           name: "Remaining Effort (optional secondary measure)"
-          description: Only populated if the team tracks Effort on work items.
+          description: >-
+            Real values only populate if the team tracks Effort on work items.
+            The "incl. estimates" series additionally fills items without an
+            Effort with a heuristic estimate (calibrated per type from items
+            that have one — see metrics.effort_estimation in config.yaml);
+            "estimated items" shows how many items per day carry an estimate
+            instead of a real value.
         plugin:
           kind: TimeSeriesChart
           spec:
@@ -205,6 +211,22 @@ spec:
                   seriesNameFormat: "{{sprint}} — remaining effort"
                   query: >-
                     sum by (sprint) (azdo_sprint_remaining_effort{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} — remaining effort (incl. estimates)"
+                  query: >-
+                    sum by (sprint) (azdo_sprint_remaining_effort_estimated{sprint=~"$sprint", work_item_type=~"$work_item_type"})
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} — estimated items"
+                  query: >-
+                    sum by (sprint) (azdo_sprint_effort_estimated_items{sprint=~"$sprint", work_item_type=~"$work_item_type"})
   layouts:
     - kind: Grid
       spec:

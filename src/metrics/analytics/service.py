@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from .domain.burndown import ideal_line
 from .domain.calendar import working_days
+from .domain.effort import EffortEstimationParams, estimate_missing_effort
 from .domain.model import (
     BurndownPoint,
     BurndownSummaryPoint,
     CapacityDayPoint,
     CapacityPoint,
     CycleTimePercentiles,
+    EffortBurndownPoint,
     ScopeChangePoint,
     VelocityPoint,
 )
@@ -98,6 +100,21 @@ def sprint_capacity_daily(
     repo: SprintMetricsRepository, iteration_path: str
 ) -> list[CapacityDayPoint]:
     return repo.capacity_daily(iteration_path)
+
+
+def effort_estimates(
+    repo: SprintMetricsRepository, params: EffortEstimationParams
+) -> dict[int, float]:
+    """Estimated effort per work item that has none — calibrated across all
+    synced items, so compute once and reuse for every sprint's burndown."""
+    signals = repo.effort_signals()
+    return {e.work_item_id: e.effort for e in estimate_missing_effort(signals, params)}
+
+
+def sprint_effort_burndown(
+    repo: SprintMetricsRepository, iteration_path: str, estimates: dict[int, float]
+) -> list[EffortBurndownPoint]:
+    return repo.effort_burndown(iteration_path, estimates)
 
 
 def sprint_velocity(

@@ -17,6 +17,12 @@ see, per sprint:
 - **Capacity vs. velocity** — a normalized trend (items per capacity-hour),
   not an absolute ratio (capacity is hours, velocity is item counts).
 - **Cycle/lead time** — P50/P85/P95 per work item type.
+- **Effort estimation** — items whose Effort is unset get a heuristic
+  estimate (calibrated per type against items with a real Effort: median
+  effort per child task and per cycle-day; fallback to the type's median,
+  then to a configured default). Estimates are exported as separate
+  `*_estimated` series — real values are never overwritten. Configure via
+  `metrics.effort_estimation` in `config.yaml`.
 - **Sprint comparison** — one bar per sprint for planned capacity,
   planned vs. completed items, completion rate, scope increase and
   average burndown, so you can see under which conditions (how much

@@ -7,11 +7,13 @@ from __future__ import annotations
 import duckdb
 
 from ..domain.calendar import DateRange
+from ..domain.effort import EffortSignal
 from ..domain.model import (
     BurndownRow,
     CapacityDayPoint,
     CapacityPoint,
     CycleTimePercentiles,
+    EffortBurndownPoint,
     IterationWindow,
     ScopeChangePoint,
     VelocityPoint,
@@ -71,6 +73,74 @@ class DuckDbSprintMetricsRepository:
             CapacityDayPoint(
                 iteration_path=iteration_path, day=r[0],
                 capacity_hours=r[1], remaining_capacity_hours=r[2],
+            )
+            for r in rows
+        ]
+
+    def effort_signals(self) -> list[EffortSignal]:
+        """Calibration/estimation inputs across ALL synced work items — the
+        calibration base is deliberately wider than one sprint."""
+        rows = self._conn.execute(
+            """
+            SELECT
+                w.work_item_id,
+                w.work_item_type,
+                w.effort,
+                (
+                    SELECT COUNT(*) FROM work_items t
+                    WHERE t.parent_id = w.work_item_id
+                      AND t.effective_category <> 'Removed'
+                ) AS task_count,
+                w.cycle_time_days
+            FROM work_items w
+            WHERE w.effective_category <> 'Removed'
+            """
+        ).fetchall()
+        return [
+            EffortSignal(
+                work_item_id=r[0], work_item_type=r[1], effort=r[2],
+                task_count=r[3], cycle_time_days=r[4],
+            )
+            for r in rows
+        ]
+
+    def effort_burndown(
+        self, iteration_path: str, estimates: dict[int, float]
+    ) -> list[EffortBurndownPoint]:
+        ids = list(estimates.keys())
+        efforts = [estimates[i] for i in ids]
+        rows = self._conn.execute(
+            """
+            WITH est AS (
+                SELECT UNNEST(?::BIGINT[]) AS work_item_id, UNNEST(?::DOUBLE[]) AS effort
+            )
+            SELECT
+                s.work_item_type,
+                s.snapshot_date,
+                SUM(COALESCE(s.effort, e.effort))
+                    FILTER (WHERE s.effective_category NOT IN ('Completed', 'Removed'))
+                    AS remaining_effort,
+                SUM(COALESCE(s.effort, e.effort))
+                    FILTER (WHERE s.effective_category <> 'Removed') AS scope_effort,
+                SUM(COALESCE(s.effort, e.effort))
+                    FILTER (WHERE s.effective_category = 'Completed') AS completed_effort,
+                COUNT(*) FILTER (
+                    WHERE s.effort IS NULL AND e.effort IS NOT NULL
+                      AND s.effective_category <> 'Removed'
+                ) AS estimated_items
+            FROM work_item_snapshots s
+            LEFT JOIN est e ON e.work_item_id = s.work_item_id
+            WHERE s.iteration_path = ?
+            GROUP BY 1, 2
+            ORDER BY 1, 2
+            """,
+            [ids, efforts, iteration_path],
+        ).fetchall()
+        return [
+            EffortBurndownPoint(
+                iteration_path=iteration_path, work_item_type=r[0], day=r[1],
+                remaining_effort=r[2], scope_effort=r[3], completed_effort=r[4],
+                estimated_items=r[5],
             )
             for r in rows
         ]

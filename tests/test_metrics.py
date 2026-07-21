@@ -5,6 +5,7 @@ import pytest
 
 from metrics.analytics import service as analytics_service
 from metrics.analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
+from metrics.analytics.domain.effort import EffortEstimationParams
 from metrics.config import StatesConfig
 from metrics.ingestion.adapters import duckdb_store as loaders
 from metrics.shared.duckdb.db import apply_schema
@@ -273,6 +274,63 @@ def test_burndown_summary_average_items_per_working_day(conn, repo):
     assert p.work_item_type == "Task"
     assert p.end_date == date(2026, 6, 5)
     assert p.avg_burndown_items_per_day == pytest.approx(2 / 5)
+
+
+def test_effort_burndown_fills_missing_effort_from_estimates(conn, repo):
+    path = _seed_sprint(conn)
+    # PBI 10 has Effort 8 and 4 child tasks (-> 2 effort/task calibration);
+    # PBI 20 has no Effort but 2 child tasks -> estimated 4.
+    items = [
+        {
+            "WorkItemId": 10, "WorkItemType": "Product Backlog Item",
+            "State": "Committed", "StateCategory": "InProgress", "Effort": 8,
+        },
+        {
+            "WorkItemId": 20, "WorkItemType": "Product Backlog Item",
+            "State": "Committed", "StateCategory": "InProgress",
+        },
+    ]
+    items += [
+        {
+            "WorkItemId": 100 + i, "WorkItemType": "Task",
+            "State": "Committed", "StateCategory": "InProgress", "ParentWorkItemId": 10,
+        }
+        for i in range(4)
+    ]
+    items += [
+        {
+            "WorkItemId": 200 + i, "WorkItemType": "Task",
+            "State": "Committed", "StateCategory": "InProgress", "ParentWorkItemId": 20,
+        }
+        for i in range(2)
+    ]
+    loaders.upsert_work_items(conn, "Proj", path, items, STATES)
+
+    snapshots = [
+        {
+            "WorkItemId": 10, "DateValue": "2026-06-01T00:00:00Z",
+            "WorkItemType": "Product Backlog Item", "State": "Committed",
+            "StateCategory": "InProgress", "Effort": 8,
+        },
+        {
+            "WorkItemId": 20, "DateValue": "2026-06-01T00:00:00Z",
+            "WorkItemType": "Product Backlog Item", "State": "Committed",
+            "StateCategory": "InProgress",
+        },
+    ]
+    loaders.upsert_work_item_snapshots(conn, path, snapshots, STATES)
+
+    estimates = analytics_service.effort_estimates(repo, EffortEstimationParams())
+    assert estimates == {20: pytest.approx(4.0)}
+
+    points = analytics_service.sprint_effort_burndown(repo, path, estimates)
+    assert len(points) == 1
+    p = points[0]
+    assert p.work_item_type == "Product Backlog Item"
+    assert p.day == date(2026, 6, 1)
+    assert p.remaining_effort == pytest.approx(12.0)  # 8 real + 4 estimated
+    assert p.scope_effort == pytest.approx(12.0)
+    assert p.estimated_items == 1
 
 
 def test_cycle_time_percentiles(conn, repo):

@@ -13,6 +13,7 @@ from ...analytics.domain.model import (
     CapacityDayPoint,
     CapacityPoint,
     CycleTimePercentiles,
+    EffortBurndownPoint,
     ScopeChangePoint,
     VelocityPoint,
 )
@@ -67,6 +68,35 @@ def render_burndown(points: Iterable[BurndownPoint], project: str, team: str) ->
             lines.append(_line("azdo_sprint_scope_effort", labels, p.scope_effort, ts))
         if p.completed_effort is not None:
             lines.append(_line("azdo_sprint_completed_effort", labels, p.completed_effort, ts))
+    return lines
+
+
+def render_effort_burndown(
+    points: Iterable[EffortBurndownPoint], project: str, team: str
+) -> list[str]:
+    """Effort series where missing item efforts are filled with estimates —
+    published under `*_estimated` names so they never masquerade as the
+    real-effort series."""
+    lines = []
+    for p in points:
+        labels = {
+            "project": project, "team": team,
+            "sprint": _sprint_label(p.iteration_path), "work_item_type": p.work_item_type,
+        }
+        ts = _day_ts_ms(p.day)
+        if p.remaining_effort is not None:
+            lines.append(
+                _line("azdo_sprint_remaining_effort_estimated", labels, p.remaining_effort, ts)
+            )
+        if p.scope_effort is not None:
+            lines.append(_line("azdo_sprint_scope_effort_estimated", labels, p.scope_effort, ts))
+        if p.completed_effort is not None:
+            lines.append(
+                _line("azdo_sprint_completed_effort_estimated", labels, p.completed_effort, ts)
+            )
+        lines.append(
+            _line("azdo_sprint_effort_estimated_items", labels, p.estimated_items, ts)
+        )
     return lines
 
 

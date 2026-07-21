@@ -69,6 +69,21 @@ class ScopeChangePoint:
 
 
 @dataclass
+class EffortBurndownPoint:
+    """Daily effort sums where items without a real Effort carry an estimated
+    one (see domain/effort.py) — exported as separate `*_estimated` series.
+    Sums are None for days/types with neither real nor estimated effort."""
+
+    iteration_path: str
+    work_item_type: str
+    day: date
+    remaining_effort: float | None
+    scope_effort: float | None
+    completed_effort: float | None
+    estimated_items: int
+
+
+@dataclass
 class BurndownSummaryPoint:
     """Per-sprint roll-up backing the burndown dashboard's stat tiles —
     average items burned down per elapsed working day."""

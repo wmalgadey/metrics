@@ -5,11 +5,13 @@ from __future__ import annotations
 from typing import Protocol
 
 from .domain.calendar import DateRange
+from .domain.effort import EffortSignal
 from .domain.model import (
     BurndownRow,
     CapacityDayPoint,
     CapacityPoint,
     CycleTimePercentiles,
+    EffortBurndownPoint,
     IterationWindow,
     ScopeChangePoint,
     VelocityPoint,
@@ -24,6 +26,12 @@ class SprintMetricsRepository(Protocol):
     def team_days_off(self, iteration_id: str) -> list[DateRange]: ...
 
     def capacity_daily(self, iteration_path: str) -> list[CapacityDayPoint]: ...
+
+    def effort_signals(self) -> list[EffortSignal]: ...
+
+    def effort_burndown(
+        self, iteration_path: str, estimates: dict[int, float]
+    ) -> list[EffortBurndownPoint]: ...
 
     def velocity(self, iteration_paths: list[str], rolling_window: int) -> list[VelocityPoint]: ...
 

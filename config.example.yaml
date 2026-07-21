@@ -24,6 +24,15 @@ metrics:
     in_progress: ["Committed", "In Progress", "Active"]
     removed: ["Removed"]
   velocity_rolling_window: 3
+  # Items whose Effort is unset get a heuristic estimate (calibrated per type
+  # against items WITH Effort: median effort-per-child-task and
+  # effort-per-cycle-day; fallback to the type's median effort, then to
+  # default_effort). Estimates are exported as separate *_estimated series —
+  # the team's real values are never overwritten.
+  effort_estimation:
+    enabled: true
+    exclude_types: ["Task", "Improvement"]   # types that never carry Effort
+    default_effort: 1.0
 
 sync:
   # Completed sprints are re-synced for this many days after their end date,
