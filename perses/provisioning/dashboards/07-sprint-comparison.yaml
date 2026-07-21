@@ -1,0 +1,195 @@
+kind: Dashboard
+metadata:
+  name: sprint-comparison
+  project: azdo-metrics
+spec:
+  display:
+    name: "Sprint Comparison"
+  duration: 1y
+  variables:
+    - kind: ListVariable
+      spec:
+        name: sprint
+        display:
+          name: Sprint
+          description: Pick two or more sprints to compare side by side.
+        allowMultiple: true
+        plugin:
+          kind: PrometheusLabelValuesVariable
+          spec:
+            labelName: sprint
+            matchers:
+              - azdo_sprint_scope_items{}
+  panels:
+    note:
+      kind: Panel
+      spec:
+        display:
+          name: "Reading this dashboard"
+        plugin:
+          kind: Markdown
+          spec:
+            text: >-
+              One bar per selected sprint, so sprints can be compared directly.
+              Read the outcome charts (completion rate, average burndown, scope
+              increase) against **planned capacity** to see under which
+              conditions the team performs: a sprint with a high completion rate
+              *and* low capacity tells a different story than one that needed
+              full capacity for the same result. *Items per capacity-hour*
+              normalizes throughput by capacity — compare its trend, not its
+              absolute value.
+    capacity_hours:
+      kind: Panel
+      spec:
+        display:
+          name: "Planned Capacity per Sprint (hours)"
+          description: Net capacity — per-day hours × working days, minus days off.
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}}"
+                  query: 'azdo_sprint_capacity_hours{sprint=~"$sprint"}'
+    planned_vs_completed:
+      kind: Panel
+      spec:
+        display:
+          name: "Planned vs. Completed Items per Sprint"
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} — planned"
+                  query: 'sum by (sprint) (azdo_sprint_planned_items{sprint=~"$sprint"})'
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}} — completed"
+                  query: 'sum by (sprint) (azdo_sprint_completed_items{sprint=~"$sprint"})'
+    completion_rate:
+      kind: Panel
+      spec:
+        display:
+          name: "Completion Rate per Sprint"
+          description: Done items / final total scope at sprint end.
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+            format: { unit: percent-decimal }
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}}"
+                  query: >-
+                    sum by (sprint) (azdo_sprint_done_items{sprint=~"$sprint"})
+                    /
+                    sum by (sprint) (azdo_sprint_scope_items{sprint=~"$sprint"})
+    scope_increase:
+      kind: Panel
+      spec:
+        display:
+          name: "Scope Increase per Sprint (items added mid-sprint)"
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}}"
+                  query: 'sum by (sprint) (azdo_sprint_added_mid_sprint_items{sprint=~"$sprint"})'
+    avg_burndown:
+      kind: Panel
+      spec:
+        display:
+          name: "Average Burndown per Sprint (items/working day)"
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}}"
+                  query: 'sum by (sprint) (azdo_sprint_avg_burndown_items_per_day{sprint=~"$sprint"})'
+    items_per_capacity_hour:
+      kind: Panel
+      spec:
+        display:
+          name: "Items per Capacity-Hour per Sprint"
+          description: Throughput normalized by planned capacity — compare relative changes.
+        plugin:
+          kind: BarChart
+          spec:
+            calculation: last
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  seriesNameFormat: "{{sprint}}"
+                  query: 'azdo_sprint_items_per_capacity_hour{sprint=~"$sprint"}'
+  layouts:
+    - kind: Grid
+      spec:
+        items:
+          - x: 0
+            y: 0
+            width: 24
+            height: 3
+            content: { $ref: "#/spec/panels/note" }
+          - x: 0
+            y: 3
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/capacity_hours" }
+          - x: 12
+            y: 3
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/planned_vs_completed" }
+          - x: 0
+            y: 12
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/completion_rate" }
+          - x: 12
+            y: 12
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/scope_increase" }
+          - x: 0
+            y: 21
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/avg_burndown" }
+          - x: 12
+            y: 21
+            width: 12
+            height: 9
+            content: { $ref: "#/spec/panels/items_per_capacity_hour" }

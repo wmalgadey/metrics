@@ -49,11 +49,23 @@ class StatesConfig(BaseModel):
     removed: list[str] = Field(default_factory=lambda: ["Removed"])
 
 
+class EffortEstimationConfig(BaseModel):
+    """Fill missing Effort values with a heuristic estimate (exported as
+    separate `*_estimated` series — real values are never overwritten)."""
+
+    enabled: bool = True
+    # Types that never carry Effort by design — no estimate is invented for them.
+    exclude_types: list[str] = Field(default_factory=lambda: ["Task", "Improvement"])
+    # Last-resort constant when a type has no calibration data at all.
+    default_effort: float = 1.0
+
+
 class MetricsConfig(BaseModel):
     excluded_types: list[str] = Field(default_factory=list)
     estimation_field: str = "Microsoft.VSTS.Scheduling.Effort"
     states: StatesConfig = Field(default_factory=StatesConfig)
     velocity_rolling_window: int = 3
+    effort_estimation: EffortEstimationConfig = Field(default_factory=EffortEstimationConfig)
 
 
 class SyncConfig(BaseModel):

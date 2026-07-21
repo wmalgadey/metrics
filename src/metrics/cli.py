@@ -16,6 +16,7 @@ from rich.logging import RichHandler
 from rich.table import Table
 
 from .analytics.adapters.duckdb_repository import DuckDbSprintMetricsRepository
+from .analytics.domain.effort import EffortEstimationParams
 from .config import (
     DEFAULT_CONFIG_FILE,
     AppConfig,
@@ -92,12 +93,21 @@ def _do_export(
     try:
         repo = DuckDbSprintMetricsRepository(conn)
         sink = VictoriaMetricsSink(config.export.victoriametrics_url)
+        estimation_cfg = config.metrics.effort_estimation
         return publish_metrics(
             repo, sink,
             project=config.azure_devops.project,
             team=config.azure_devops.team,
             iteration_paths=target_paths,
             rolling_window=config.metrics.velocity_rolling_window,
+            effort_estimation=(
+                EffortEstimationParams(
+                    exclude_types=estimation_cfg.exclude_types,
+                    default_effort=estimation_cfg.default_effort,
+                )
+                if estimation_cfg.enabled
+                else None
+            ),
         )
     except httpx.HTTPError as exc:
         msg = f"Export to VictoriaMetrics failed ({config.export.victoriametrics_url}): {exc}"
